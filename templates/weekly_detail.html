@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Week of {{ rollup.get('Week Ending', '?') }} — OSINT{% endblock %}
+
+{% block head %}
+<style>
+  .weekly-meta {
+    display: flex; gap: 16px; align-items: center;
+    margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .weekly-meta .back {
+    color: var(--dim); font-size: 13px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .weekly-meta .back:hover { color: var(--text); }
+  .weekly-date { font-size: 22px; font-weight: 700; }
+  .weekly-days { font-size: 13px; color: var(--dim); }
+
+  .weekly-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    font-size: 14px; line-height: 1.7;
+  }
+  .weekly-body p { margin-bottom: 12px; }
+  .weekly-body p:last-child { margin-bottom: 0; }
+  .weekly-body h1, .weekly-body h2, .weekly-body h3 {
+    font-size: 15px; font-weight: 700; margin: 18px 0 8px;
+    color: var(--text);
+  }
+  .weekly-body ul, .weekly-body ol { padding-left: 20px; margin-bottom: 12px; }
+  .weekly-body li { margin-bottom: 4px; }
+  .weekly-body strong, .weekly-body b { font-weight: 700; }
+  .weekly-body table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
+  .weekly-body th, .weekly-body td { padding: 8px 12px; border: 1px solid var(--border); }
+  .weekly-body th { background: var(--surface-2); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+  .weekly-body blockquote { border-left: 3px solid var(--border-2); padding-left: 14px; color: var(--muted); margin: 10px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="weekly-meta">
+  <a class="back" href="{{ url_for('weekly') }}">&#8592; All Rollups</a>
+  <div>
+    <div class="weekly-date">Week ending {{ rollup.get('Week Ending', '—') }}</div>
+    {% if rollup.get('Days Covered') %}
+    <div class="weekly-days">{{ rollup['Days Covered'] }} days covered</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="weekly-body">
+  {% if rollup.get('Weekly Assessment') %}
+    {{ rollup['Weekly Assessment']|safe }}
+  {% else %}
+    <p class="text-dim">No assessment content for this week.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -3,11 +3,63 @@
 
 {% block head %}
 <style>
-  .claim-text { max-width: 340px; font-size: 13px; }
-  .status-open         { color: var(--amber); font-weight: 600; }
-  .status-confirmed    { color: var(--green); font-weight: 600; }
-  .status-contradicted { color: var(--red);   font-weight: 600; }
-  .days-open { font-variant-numeric: tabular-nums; }
+  .kanban {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    align-items: start;
+  }
+  @media (max-width: 768px) {
+    .kanban { grid-template-columns: 1fr; }
+  }
+
+  .kanban-col {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .kanban-header {
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .kanban-header .col-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .kanban-header .col-count {
+    font-size: 11px; color: var(--dim);
+    margin-left: auto;
+  }
+  .col-open   .kanban-header { border-top: 3px solid var(--amber); }
+  .col-confirm .kanban-header { border-top: 3px solid var(--green); }
+  .col-contra  .kanban-header { border-top: 3px solid var(--red); }
+
+  .col-open   .col-title { color: var(--amber); }
+  .col-confirm .col-title { color: var(--green); }
+  .col-contra  .col-title { color: var(--red); }
+
+  .kanban-cards { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+  .claim-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+  .claim-text { line-height: 1.5; margin-bottom: 8px; color: var(--text); }
+  .claim-meta {
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: center;
+  }
+  .days-chip {
+    font-size: 10px; color: var(--dim);
+    margin-left: auto; white-space: nowrap;
+  }
+
+  .empty-col { color: var(--dim); font-size: 12px; text-align: center; padding: 20px 12px; }
+  .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
   .filter-count { font-size: 12px; color: var(--muted); margin-left: auto; }
 </style>
 {% endblock %}
@@ -15,16 +67,10 @@
 {% block content %}
 <div class="page-header">
   <h1>Claim Tracker</h1>
-  <p>All tracked claims from intelligence streams</p>
+  <p>Tracked claims from intelligence streams</p>
 </div>
 
-<form class="filters" method="get">
-  <select name="status">
-    <option value="">All Statuses</option>
-    {% for s in all_statuses %}
-      <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
-    {% endfor %}
-  </select>
+<form class="filter-bar" method="get">
   <select name="category">
     <option value="">All Categories</option>
     {% for c in all_categories %}
@@ -38,58 +84,88 @@
     {% endfor %}
   </select>
   <button class="btn btn-primary" type="submit">Filter</button>
-  {% if status_filter or category_filter or priority_filter %}
+  {% if category_filter or priority_filter %}
     <a class="btn" href="{{ url_for('claims') }}">Clear</a>
   {% endif %}
-  <span class="filter-count">{{ claims|length }} claim{{ 's' if claims|length != 1 }}</span>
+  <span class="filter-count">{{ total }} claim{{ 's' if total != 1 }}</span>
 </form>
 
-{% if claims %}
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Date Added</th>
-        <th>Stream</th>
-        <th>Claim</th>
-        <th>Type</th>
-        <th>Category</th>
-        <th>Priority</th>
-        <th>Status</th>
-        <th>Days Open</th>
-        <th>Last Checked</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for c in claims %}
-        {% set st = c.get('Status', '')|upper %}
-      <tr>
-        <td class="text-dim" style="white-space:nowrap;font-size:12px">{{ c.get('Date Added', '—') }}</td>
-        <td style="font-size:12px;white-space:nowrap">{{ c.get('Stream Title', '—') }}</td>
-        <td class="claim-text">{{ c.get('Claim', '—') }}</td>
-        <td>{% if c.get('Type') %}<span class="badge badge-gray">{{ c['Type'] }}</span>{% endif %}</td>
-        <td>{% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}</td>
-        <td>
+<div class="kanban">
+
+  <!-- OPEN -->
+  <div class="kanban-col col-open">
+    <div class="kanban-header">
+      <span class="col-title">Open</span>
+      <span class="col-count">{{ open_claims|length }}</span>
+    </div>
+    <div class="kanban-cards">
+      {% for c in open_claims %}
+      <div class="claim-card">
+        <div class="claim-text">{{ c.get('Claim', '—') }}</div>
+        <div class="claim-meta">
+          {% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}
           {% set pri = c.get('Priority', '')|upper %}
           {% if pri == 'HIGH' %}<span class="badge badge-red">{{ pri }}</span>
           {% elif pri == 'MEDIUM' %}<span class="badge badge-amber">{{ pri }}</span>
-          {% elif pri == 'LOW' %}<span class="badge badge-gray">{{ pri }}</span>
           {% elif pri %}<span class="badge badge-gray">{{ pri }}</span>{% endif %}
-        </td>
-        <td>
-          {% if st == 'OPEN' %}<span class="status-open">OPEN</span>
-          {% elif st == 'CONFIRMED' %}<span class="status-confirmed">CONFIRMED</span>
-          {% elif st == 'CONTRADICTED' %}<span class="status-contradicted">CONTRADICTED</span>
-          {% elif st %}<span class="text-muted">{{ st }}</span>{% endif %}
-        </td>
-        <td class="days-open text-muted">{{ c.get('Days Open', '—') }}</td>
-        <td class="text-muted" style="font-size:12px">{{ c.get('Last Checked', '—') }}</td>
-      </tr>
+          {% if c.get('Days Open') %}<span class="days-chip">{{ c['Days Open'] }}d open</span>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-col">No open claims</div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </div>
+
+  <!-- CONFIRMED -->
+  <div class="kanban-col col-confirm">
+    <div class="kanban-header">
+      <span class="col-title">Confirmed</span>
+      <span class="col-count">{{ confirmed_claims|length }}</span>
+    </div>
+    <div class="kanban-cards">
+      {% for c in confirmed_claims %}
+      <div class="claim-card">
+        <div class="claim-text">{{ c.get('Claim', '—') }}</div>
+        <div class="claim-meta">
+          {% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}
+          {% set pri = c.get('Priority', '')|upper %}
+          {% if pri == 'HIGH' %}<span class="badge badge-red">{{ pri }}</span>
+          {% elif pri == 'MEDIUM' %}<span class="badge badge-amber">{{ pri }}</span>
+          {% elif pri %}<span class="badge badge-gray">{{ pri }}</span>{% endif %}
+          {% if c.get('Days Open') %}<span class="days-chip">{{ c['Days Open'] }}d</span>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-col">No confirmed claims</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- CONTRADICTED -->
+  <div class="kanban-col col-contra">
+    <div class="kanban-header">
+      <span class="col-title">Contradicted</span>
+      <span class="col-count">{{ contradicted_claims|length }}</span>
+    </div>
+    <div class="kanban-cards">
+      {% for c in contradicted_claims %}
+      <div class="claim-card">
+        <div class="claim-text">{{ c.get('Claim', '—') }}</div>
+        <div class="claim-meta">
+          {% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}
+          {% set pri = c.get('Priority', '')|upper %}
+          {% if pri == 'HIGH' %}<span class="badge badge-red">{{ pri }}</span>
+          {% elif pri == 'MEDIUM' %}<span class="badge badge-amber">{{ pri }}</span>
+          {% elif pri %}<span class="badge badge-gray">{{ pri }}</span>{% endif %}
+          {% if c.get('Days Open') %}<span class="days-chip">{{ c['Days Open'] }}d</span>{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-col">No contradicted claims</div>
+      {% endfor %}
+    </div>
+  </div>
+
 </div>
-{% else %}
-  <div class="empty">No claims match the current filters.</div>
-{% endif %}
 {% endblock %}

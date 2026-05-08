@@ -121,13 +121,10 @@ def scorecard():
 def claims():
     all_claims = sheets.get_claims()
 
-    status_filter = request.args.get("status", "").strip()
     category_filter = request.args.get("category", "").strip()
     priority_filter = request.args.get("priority", "").strip()
 
     filtered = all_claims
-    if status_filter:
-        filtered = [c for c in filtered if c.get("Status", "").upper() == status_filter.upper()]
     if category_filter:
         filtered = [c for c in filtered if c.get("Category", "").lower() == category_filter.lower()]
     if priority_filter:
@@ -135,19 +132,23 @@ def claims():
 
     filtered = sorted(filtered, key=lambda x: x.get("Date Added", ""), reverse=True)
 
-    all_statuses = sorted({c.get("Status", "") for c in all_claims if c.get("Status")})
+    open_claims        = [c for c in filtered if c.get("Status", "").upper() == "OPEN"]
+    confirmed_claims   = [c for c in filtered if c.get("Status", "").upper() == "CONFIRMED"]
+    contradicted_claims = [c for c in filtered if c.get("Status", "").upper() == "CONTRADICTED"]
+
     all_categories = sorted({c.get("Category", "") for c in all_claims if c.get("Category")})
     all_priorities = sorted({c.get("Priority", "") for c in all_claims if c.get("Priority")})
 
     return render_template(
         "claims.html",
-        claims=filtered,
-        all_statuses=all_statuses,
+        open_claims=open_claims,
+        confirmed_claims=confirmed_claims,
+        contradicted_claims=contradicted_claims,
         all_categories=all_categories,
         all_priorities=all_priorities,
-        status_filter=status_filter,
         category_filter=category_filter,
         priority_filter=priority_filter,
+        total=len(filtered),
     )
 
 
@@ -167,6 +168,80 @@ def search():
         ]
         results = sorted(results, key=lambda x: x.get("Date", ""), reverse=True)
     return render_template("search.html", results=results, q=q)
+
+
+# ── Weekly Rollups ────────────────────────────────────────────────────────────
+
+@app.route("/weekly")
+@require_auth
+def weekly():
+    rollups = sheets.get_weekly_rollups()
+    rollups = sorted(rollups, key=lambda x: x.get("Week Ending", ""), reverse=True)
+    return render_template("weekly.html", rollups=rollups)
+
+
+@app.route("/weekly/<int:row_index>")
+@require_auth
+def weekly_detail(row_index):
+    rollups = sheets.get_weekly_rollups()
+    match = next((r for r in rollups if r["_row_index"] == row_index), None)
+    if not match:
+        return render_template("error.html", message="Weekly rollup not found."), 404
+    return render_template("weekly_detail.html", rollup=match)
+
+
+# ── Theater Map ───────────────────────────────────────────────────────────────
+
+@app.route("/map")
+@require_auth
+def theater_map():
+    briefs = sheets.get_intel_log()
+    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+
+    # Find today's brief (or most recent)
+    def parse_date(s):
+        for fmt in ("%B %d, %Y", "%B %d %Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(s.strip(), fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    briefs_dated = [(b, parse_date(b.get("Date", ""))) for b in briefs]
+    briefs_dated = [(b, d) for b, d in briefs_dated if d]
+    briefs_dated.sort(key=lambda x: x[1], reverse=True)
+
+    latest_brief, latest_date = briefs_dated[0] if briefs_dated else (None, None)
+
+    def theater_status(brief, keywords):
+        if not brief:
+            return "gray"
+        text = " ".join([
+            brief.get("TAC-INT Brief", ""),
+            brief.get("Wire News", ""),
+        ]).lower()
+        mentioned = any(k.lower() in text for k in keywords)
+        if not mentioned:
+            return "gray"
+        # Check if FLAGGED-VERIFY appears near any keyword
+        full = brief.get("TAC-INT Brief", "") + " " + brief.get("Wire News", "")
+        for k in keywords:
+            idx = full.lower().find(k.lower())
+            while idx != -1:
+                window = full[max(0, idx-200):idx+200]
+                if "FLAGGED-VERIFY" in window:
+                    return "red"
+                idx = full.lower().find(k.lower(), idx + 1)
+        return "amber"
+
+    theaters = {
+        "iran": theater_status(latest_brief, ["iran", "persian gulf", "hormuz", "irgc", "tehran"]),
+        "ukraine": theater_status(latest_brief, ["ukraine", "russia", "kyiv", "moscow", "zaporizhzhia", "kharkiv"]),
+        "israel": theater_status(latest_brief, ["israel", "lebanon", "gaza", "hezbollah", "hamas", "idf"]),
+        "baltic": theater_status(latest_brief, ["baltic", "nato", "finland", "estonia", "latvia", "lithuania", "poland"]),
+    }
+
+    return render_template("map.html", theaters=theaters, latest_date=latest_date)
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────

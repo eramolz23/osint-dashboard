@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Weekly Rollups — OSINT{% endblock %}
+
+{% block head %}
+<style>
+  .rollup-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .rollup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    text-decoration: none;
+    display: block;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .rollup-card:hover {
+    border-color: var(--border-2);
+    background: var(--surface-2);
+    text-decoration: none;
+  }
+  .rollup-week { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .rollup-days { font-size: 12px; color: var(--dim); margin-bottom: 10px; }
+  .rollup-preview {
+    font-size: 13px; color: var(--muted); line-height: 1.55;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Weekly Rollups</h1>
+  <p>Weekly intelligence assessments from The Enforcer stream analysis</p>
+</div>
+
+{% if rollups %}
+<div class="rollup-grid">
+  {% for r in rollups %}
+  <a class="rollup-card" href="{{ url_for('weekly_detail', row_index=r._row_index) }}">
+    <div class="rollup-week">Week ending {{ r.get('Week Ending', '—') }}</div>
+    <div class="rollup-days">{{ r.get('Days Covered', '') }}{% if r.get('Days Covered') %} days covered{% endif %}</div>
+    <div class="rollup-preview">{{ r.get('Weekly Assessment', '')|striptags|truncate(180) }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty">No weekly rollups found.</div>
+{% endif %}
+{% endblock %}
