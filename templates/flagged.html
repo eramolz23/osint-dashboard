@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Flagged Claims — OSINT{% endblock %}
+
+{% block head %}
+<style>
+  /* Stats bar */
+  .stats-bar {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    min-width: 120px; flex: 1;
+    text-align: center;
+  }
+  .stat-value {
+    font-size: 26px; font-weight: 700; line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .stat-card.total  .stat-value { color: var(--text); }
+  .stat-card.open   .stat-value { color: var(--amber); }
+  .stat-card.conf   .stat-value { color: var(--green); }
+  .stat-card.cont   .stat-value { color: var(--red); }
+  .stat-card.rate   .stat-value { color: var(--accent); }
+
+  /* Cards grid */
+  .flagged-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+
+  .flagged-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+    border-left-width: 3px;
+  }
+  .flagged-card.open   { border-left-color: var(--amber); }
+  .flagged-card.conf   { border-left-color: var(--green); }
+  .flagged-card.cont   { border-left-color: var(--red); }
+  .flagged-card.other  { border-left-color: var(--border-2); }
+
+  .card-claim {
+    font-size: 13px; line-height: 1.6; color: var(--text);
+  }
+
+  .card-meta {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    font-size: 11px;
+  }
+  .meta-date   { color: var(--dim); white-space: nowrap; }
+  .meta-stream { color: var(--muted); white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+  .meta-days   { color: var(--dim); white-space: nowrap; margin-left: auto; }
+
+  .status-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 2px 8px;
+    border-radius: 100px; white-space: nowrap;
+  }
+  .chip-open  { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .chip-conf  { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .chip-cont  { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+  .chip-other { background: var(--surface-2); color: var(--dim);  border: 1px solid var(--border); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Flagged Claims</h1>
+  <p>All FLAGGED-VERIFY claims from the Claim Tracker requiring cross-check</p>
+</div>
+
+<!-- Summary stats -->
+<div class="stats-bar">
+  <div class="stat-card total">
+    <div class="stat-value">{{ total }}</div>
+    <div class="stat-label">Total Flagged</div>
+  </div>
+  <div class="stat-card open">
+    <div class="stat-value">{{ n_open }}</div>
+    <div class="stat-label">Still Open</div>
+  </div>
+  <div class="stat-card conf">
+    <div class="stat-value">{{ n_conf }}</div>
+    <div class="stat-label">Confirmed</div>
+  </div>
+  <div class="stat-card cont">
+    <div class="stat-value">{{ n_cont }}</div>
+    <div class="stat-label">Contradicted</div>
+  </div>
+  <div class="stat-card rate">
+    <div class="stat-value">{{ conf_rate }}%</div>
+    <div class="stat-label">Confirm Rate</div>
+  </div>
+</div>
+
+{% if claims %}
+<div class="flagged-grid">
+  {% for c in claims %}
+    {% set st = c.get('Status', '')|upper %}
+    {% if st == 'OPEN' %}{% set card_cls = 'open' %}
+    {% elif st == 'CONFIRMED' %}{% set card_cls = 'conf' %}
+    {% elif st == 'CONTRADICTED' %}{% set card_cls = 'cont' %}
+    {% else %}{% set card_cls = 'other' %}{% endif %}
+
+  <div class="flagged-card {{ card_cls }}">
+    <div class="card-claim">{{ c.get('Claim', '—') }}</div>
+
+    <div class="card-meta">
+      {% if st == 'OPEN' %}<span class="status-chip chip-open">Open</span>
+      {% elif st == 'CONFIRMED' %}<span class="status-chip chip-conf">Confirmed</span>
+      {% elif st == 'CONTRADICTED' %}<span class="status-chip chip-cont">Contradicted</span>
+      {% else %}<span class="status-chip chip-other">{{ st or '—' }}</span>{% endif %}
+
+      {% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}
+
+      <span class="meta-date">{{ c.get('Date Added', '—') }}</span>
+      {% if c.get('Stream Title') %}<span class="meta-stream" title="{{ c['Stream Title'] }}">{{ c['Stream Title'] }}</span>{% endif %}
+      {% if c.get('Days Open') %}<span class="meta-days">{{ c['Days Open'] }}d</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty">No FLAGGED-VERIFY claims found.</div>
+{% endif %}
+{% endblock %}

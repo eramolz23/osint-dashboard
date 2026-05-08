@@ -201,6 +201,32 @@ def weekly_detail(row_index):
     return render_template("weekly_detail.html", rollup=match)
 
 
+# ── Flagged Claims ────────────────────────────────────────────────────────────
+
+@app.route("/flagged")
+@require_auth
+def flagged():
+    all_claims = sheets.get_claims()
+    flagged_claims = [c for c in all_claims if c.get("Type", "").strip().upper() == "FLAGGED-VERIFY"]
+    flagged_claims = sorted(flagged_claims, key=lambda x: x.get("Date Added", ""), reverse=True)
+
+    total   = len(flagged_claims)
+    n_open  = sum(1 for c in flagged_claims if c.get("Status", "").upper() == "OPEN")
+    n_conf  = sum(1 for c in flagged_claims if c.get("Status", "").upper() == "CONFIRMED")
+    n_cont  = sum(1 for c in flagged_claims if c.get("Status", "").upper() == "CONTRADICTED")
+    conf_rate = round(n_conf / total * 100) if total else 0
+
+    return render_template(
+        "flagged.html",
+        claims=flagged_claims,
+        total=total,
+        n_open=n_open,
+        n_conf=n_conf,
+        n_cont=n_cont,
+        conf_rate=conf_rate,
+    )
+
+
 # ── Timeline Search ───────────────────────────────────────────────────────────
 
 def _strip_tags(s):
