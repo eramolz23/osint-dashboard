@@ -180,7 +180,7 @@
       <a href="{{ url_for('scorecard') }}" {% if request.endpoint == 'scorecard' %}class="active"{% endif %}>Scorecard</a>
       <a href="{{ url_for('claims') }}" {% if request.endpoint == 'claims' %}class="active"{% endif %}>Claims</a>
       <a href="{{ url_for('weekly') }}" {% if request.endpoint in ('weekly', 'weekly_detail') %}class="active"{% endif %}>Weekly</a>
-      <a href="{{ url_for('theater_map') }}" {% if request.endpoint == 'theater_map' %}class="active"{% endif %}>Map</a>
+      <a href="{{ url_for('timeline') }}" {% if request.endpoint == 'timeline' %}class="active"{% endif %}>Timeline</a>
       <a href="{{ url_for('chat') }}" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
     </div>
     <form class="nav-search" action="{{ url_for('search') }}" method="get">

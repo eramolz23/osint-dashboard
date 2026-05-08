@@ -1,4 +1,6 @@
+import html as html_module
 import os
+import re
 from datetime import datetime, timedelta
 from functools import wraps
 
@@ -24,6 +26,15 @@ Rules:
 - If the data does not contain an answer, say so explicitly.
 - Be concise, direct, and analytical. This is an operational intelligence context.
 - Do not speculate beyond what the source material supports."""
+
+
+def parse_date(s):
+    for fmt in ("%B %d, %Y", "%B %d %Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s.strip(), fmt).date()
+        except ValueError:
+            pass
+    return None
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -132,8 +143,8 @@ def claims():
 
     filtered = sorted(filtered, key=lambda x: x.get("Date Added", ""), reverse=True)
 
-    open_claims        = [c for c in filtered if c.get("Status", "").upper() == "OPEN"]
-    confirmed_claims   = [c for c in filtered if c.get("Status", "").upper() == "CONFIRMED"]
+    open_claims         = [c for c in filtered if c.get("Status", "").upper() == "OPEN"]
+    confirmed_claims    = [c for c in filtered if c.get("Status", "").upper() == "CONFIRMED"]
     contradicted_claims = [c for c in filtered if c.get("Status", "").upper() == "CONTRADICTED"]
 
     all_categories = sorted({c.get("Category", "") for c in all_claims if c.get("Category")})
@@ -190,58 +201,66 @@ def weekly_detail(row_index):
     return render_template("weekly_detail.html", rollup=match)
 
 
-# ── Theater Map ───────────────────────────────────────────────────────────────
+# ── Timeline Search ───────────────────────────────────────────────────────────
 
-@app.route("/map")
+def _strip_tags(s):
+    return re.sub(r'<[^>]+>', ' ', s)
+
+
+def _sentences_containing(text, keyword):
+    """Return plain-text sentences from HTML content that contain keyword."""
+    plain = html_module.unescape(_strip_tags(text))
+    # Normalise whitespace left by stripped tags
+    plain = re.sub(r'[ \t]{2,}', ' ', plain)
+    parts = re.split(r'(?<=[.!?])\s+', plain)
+    kl = keyword.lower()
+    return [p.strip() for p in parts if kl in p.lower() and len(p.strip()) > 10]
+
+
+def _highlight(sentence, keyword):
+    """Return HTML-escaped sentence with keyword wrapped in a highlight span."""
+    escaped = html_module.escape(sentence)
+    pattern = re.compile(re.escape(html_module.escape(keyword)), re.IGNORECASE)
+    return pattern.sub(
+        lambda m: f'<mark class="kw">{m.group(0)}</mark>',
+        escaped,
+    )
+
+
+@app.route("/timeline")
 @require_auth
-def theater_map():
-    briefs = sheets.get_intel_log()
-    today_str = datetime.utcnow().strftime("%Y-%m-%d")
+def timeline():
+    q = request.args.get("q", "").strip()
+    results = []
 
-    # Find today's brief (or most recent)
-    def parse_date(s):
-        for fmt in ("%B %d, %Y", "%B %d %Y", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(s.strip(), fmt).date()
-            except ValueError:
-                pass
-        return None
+    if q:
+        briefs = sheets.get_intel_log()
+        for b in briefs:
+            snippets = []
+            for field in ("TAC-INT Brief", "Wire News", "Reddit OSINT"):
+                content = b.get(field, "")
+                if content:
+                    for s in _sentences_containing(content, q):
+                        snippets.append(_highlight(s, q))
+                        if len(snippets) >= 6:
+                            break
+                if len(snippets) >= 6:
+                    break
 
-    briefs_dated = [(b, parse_date(b.get("Date", ""))) for b in briefs]
-    briefs_dated = [(b, d) for b, d in briefs_dated if d]
-    briefs_dated.sort(key=lambda x: x[1], reverse=True)
+            if snippets:
+                d = parse_date(b.get("Date", ""))
+                results.append({
+                    "date_raw": b.get("Date", ""),
+                    "date_obj": d,
+                    "title": b.get("Video Title", "—"),
+                    "row_index": b["_row_index"],
+                    "snippets": snippets,
+                })
 
-    latest_brief, latest_date = briefs_dated[0] if briefs_dated else (None, None)
+        # Chronological order — oldest first
+        results.sort(key=lambda x: x["date_obj"] or datetime.min.date())
 
-    def theater_status(brief, keywords):
-        if not brief:
-            return "gray"
-        text = " ".join([
-            brief.get("TAC-INT Brief", ""),
-            brief.get("Wire News", ""),
-        ]).lower()
-        mentioned = any(k.lower() in text for k in keywords)
-        if not mentioned:
-            return "gray"
-        # Check if FLAGGED-VERIFY appears near any keyword
-        full = brief.get("TAC-INT Brief", "") + " " + brief.get("Wire News", "")
-        for k in keywords:
-            idx = full.lower().find(k.lower())
-            while idx != -1:
-                window = full[max(0, idx-200):idx+200]
-                if "FLAGGED-VERIFY" in window:
-                    return "red"
-                idx = full.lower().find(k.lower(), idx + 1)
-        return "amber"
-
-    theaters = {
-        "iran": theater_status(latest_brief, ["iran", "persian gulf", "hormuz", "irgc", "tehran"]),
-        "ukraine": theater_status(latest_brief, ["ukraine", "russia", "kyiv", "moscow", "zaporizhzhia", "kharkiv"]),
-        "israel": theater_status(latest_brief, ["israel", "lebanon", "gaza", "hezbollah", "hamas", "idf"]),
-        "baltic": theater_status(latest_brief, ["baltic", "nato", "finland", "estonia", "latvia", "lithuania", "poland"]),
-    }
-
-    return render_template("map.html", theaters=theaters, latest_date=latest_date)
+    return render_template("timeline.html", results=results, q=q)
 
 
 # ── Chat ──────────────────────────────────────────────────────────────────────
@@ -266,19 +285,9 @@ def api_chat():
     if not api_key:
         return jsonify({"error": "GEMINI_API_KEY is not configured on this server."}), 500
 
-    # Fetch Intel Log and filter to last 30 days
     briefs = sheets.get_intel_log()
     cutoff = datetime.utcnow().date() - timedelta(days=30)
 
-    def parse_date(s):
-        for fmt in ("%B %d, %Y", "%B %d %Y", "%Y-%m-%d"):
-            try:
-                return datetime.strptime(s.strip(), fmt).date()
-            except ValueError:
-                pass
-        return None
-
-    # Deduplicate by (date, title) and keep only recent rows
     seen, recent = set(), []
     for b in briefs:
         d = parse_date(b.get("Date", ""))
@@ -326,7 +335,6 @@ def api_chat():
 
 @app.route("/sw.js")
 def service_worker():
-    # Must be served from root scope so it can control all pages
     return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
 

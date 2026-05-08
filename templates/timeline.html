@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Timeline Search — OSINT{% endblock %}
+
+{% block head %}
+<style>
+  .timeline-search {
+    display: flex; gap: 8px; margin-bottom: 28px;
+  }
+  .timeline-search input {
+    flex: 1; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius);
+    padding: 9px 14px; font-size: 14px; font-family: inherit;
+  }
+  .timeline-search input:focus { outline: none; border-color: var(--accent); }
+  .timeline-search input::placeholder { color: var(--dim); }
+  .timeline-search button {
+    background: var(--accent); border: none; color: #fff;
+    border-radius: var(--radius); padding: 9px 20px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .timeline-search button:hover { background: #2563eb; }
+
+  .result-count {
+    font-size: 12px; color: var(--dim); margin-bottom: 20px;
+  }
+
+  /* Timeline track */
+  .tl { position: relative; padding-left: 28px; }
+  .tl::before {
+    content: '';
+    position: absolute; left: 7px; top: 0; bottom: 0;
+    width: 2px; background: var(--border);
+  }
+
+  .tl-entry { position: relative; margin-bottom: 24px; }
+  .tl-dot {
+    position: absolute; left: -25px; top: 5px;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg);
+    flex-shrink: 0;
+  }
+
+  .tl-header {
+    display: flex; flex-wrap: wrap; align-items: baseline;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .tl-date {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--accent);
+    white-space: nowrap;
+  }
+  .tl-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+  }
+  .tl-link { color: inherit; }
+  .tl-link:hover { color: var(--accent); text-decoration: none; }
+
+  .tl-snippets { display: flex; flex-direction: column; gap: 6px; }
+  .tl-snippet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 13px;
+    font-size: 13px; line-height: 1.6; color: var(--muted);
+  }
+
+  mark.kw {
+    background: rgba(245,158,11,0.25);
+    color: var(--amber);
+    border-radius: 2px;
+    padding: 0 2px;
+    font-weight: 600;
+    /* override browser default mark styling */
+    -webkit-text-decoration: none;
+  }
+
+  .empty-state {
+    color: var(--muted); text-align: center; padding: 60px 20px;
+    font-size: 14px;
+  }
+  .empty-state .hint { color: var(--dim); margin-top: 6px; font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Timeline Search</h1>
+  <p>Search all briefs and see every mention in chronological order</p>
+</div>
+
+<form class="timeline-search" method="get" action="{{ url_for('timeline') }}">
+  <input
+    type="search"
+    name="q"
+    value="{{ q }}"
+    placeholder="e.g. Hezbollah, Zaporizhzhia, drone strike…"
+    autofocus
+  />
+  <button type="submit">Search</button>
+</form>
+
+{% if q %}
+  {% if results %}
+    <div class="result-count">{{ results|length }} brief{{ 's' if results|length != 1 }} — oldest to newest</div>
+    <div class="tl">
+      {% for r in results %}
+      <div class="tl-entry">
+        <div class="tl-dot"></div>
+        <div class="tl-header">
+          <span class="tl-date">{{ r.date_raw }}</span>
+          <span class="tl-title">
+            <a class="tl-link" href="{{ url_for('brief', row_index=r.row_index) }}">{{ r.title }}</a>
+          </span>
+        </div>
+        <div class="tl-snippets">
+          {% for snippet in r.snippets %}
+          <div class="tl-snippet">…{{ snippet|safe }}…</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">
+      No briefs mention <strong>{{ q }}</strong>
+      <div class="hint">Try a different keyword or check the spelling</div>
+    </div>
+  {% endif %}
+{% else %}
+  <div class="empty-state">
+    Enter a keyword above to search across all intelligence briefs
+    <div class="hint">Searches TAC-INT, Wire News, and Reddit OSINT content</div>
+  </div>
+{% endif %}
+{% endblock %}
