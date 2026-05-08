@@ -2,6 +2,7 @@
 .env
 *.json
 !package.json
+!vercel.json
 
 # Python
 __pycache__/
