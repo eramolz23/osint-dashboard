@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Daily Briefs — OSINT Dashboard{% endblock %}
+
+{% block head %}
+<style>
+  .briefs-list { display: flex; flex-direction: column; gap: 10px; }
+  .brief-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+    display: grid; grid-template-columns: 100px 1fr auto;
+    gap: 16px; align-items: center; transition: border-color 0.15s;
+  }
+  .brief-row:hover { border-color: var(--border-2); }
+  .brief-date { font-size: 12px; color: var(--dim); white-space: nowrap; }
+  .brief-title { font-size: 15px; font-weight: 500; }
+  .brief-channel { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .brief-title a { color: var(--text); }
+  .brief-title a:hover { color: var(--accent); text-decoration: none; }
+  .brief-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  @media (max-width: 600px) {
+    .brief-row { grid-template-columns: 1fr; }
+    .brief-meta { margin-top: 8px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Daily Briefs</h1>
+  <p>{{ briefs|length }} brief{{ 's' if briefs|length != 1 }} — most recent first</p>
+</div>
+
+{% if briefs %}
+<div class="briefs-list">
+  {% for b in briefs %}
+  {% set rate = b._rate %}
+  {% if rate is not none %}
+    {% if rate >= 60 %}{% set badge_cls = 'badge-green' %}
+    {% elif rate >= 40 %}{% set badge_cls = 'badge-amber' %}
+    {% else %}{% set badge_cls = 'badge-red' %}
+    {% endif %}
+  {% else %}{% set badge_cls = 'badge-gray' %}{% endif %}
+
+  <div class="brief-row">
+    <div class="brief-date">{{ b.get('Date', '—') }}</div>
+    <div>
+      <div class="brief-title">
+        <a href="{{ url_for('brief', row_index=b._row_index) }}">
+          {{ b.get('Video Title', '(untitled)') }}
+        </a>
+      </div>
+      {% if b.get('Channel') %}
+        <div class="brief-channel">{{ b.get('Channel') }}</div>
+      {% endif %}
+    </div>
+    <div class="brief-meta">
+      {% if rate is not none %}
+        <span class="badge {{ badge_cls }}">{{ rate|int }}% confirmed</span>
+      {% else %}
+        <span class="badge badge-gray">no score</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty">No briefs found. Check that the Intel Log tab has data.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Error — OSINT{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Something went wrong</h1>
+</div>
+<div class="alert-error">{{ message }}</div>
+<p><a href="{{ url_for('index') }}">&larr; Back to briefs</a></p>
+{% endblock %}

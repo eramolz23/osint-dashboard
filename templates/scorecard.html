@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Reliability Scorecard — OSINT{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; margin-bottom: 24px;
+  }
+  .chart-card h2 { font-size: 13px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px; }
+  .chart-wrap { position: relative; height: 220px; }
+  .c-badges { display: flex; gap: 6px; }
+  .num { font-variant-numeric: tabular-nums; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Reliability Scorecard</h1>
+  <p>Confirmation rates and confidence classification per stream</p>
+</div>
+
+<div class="chart-card">
+  <h2>Confirmation Rate Over Time</h2>
+  <div class="chart-wrap">
+    <canvas id="rateChart"></canvas>
+  </div>
+</div>
+
+{% if rows %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Stream</th>
+        <th>Total</th>
+        <th>Confirmed</th>
+        <th>Contradicted</th>
+        <th>Not in Wire</th>
+        <th>Flagged</th>
+        <th>Rate %</th>
+        <th>Confidence</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+        {% set rate_raw = r.get('Confirmation Rate %', '') %}
+        {% set rate = rate_raw|float if rate_raw else none %}
+        {% if rate is not none %}
+          {% if rate >= 60 %}{% set row_cls = 'row-green' %}
+          {% elif rate >= 40 %}{% set row_cls = 'row-amber' %}
+          {% else %}{% set row_cls = 'row-red' %}
+          {% endif %}
+        {% else %}{% set row_cls = '' %}{% endif %}
+      <tr class="{{ row_cls }}">
+        <td class="num text-muted">{{ r.get('Date', '—') }}</td>
+        <td>{{ r.get('Stream Title', '—') }}</td>
+        <td class="num">{{ r.get('Total Claims', '—') }}</td>
+        <td class="num" style="color:var(--green)">{{ r.get('Wire Confirmed', '—') }}</td>
+        <td class="num" style="color:var(--red)">{{ r.get('Wire Contradicted', '—') }}</td>
+        <td class="num text-muted">{{ r.get('Not In Wire', '—') }}</td>
+        <td class="num" style="color:var(--amber)">{{ r.get('FLAGGED-VERIFY Count', '—') }}</td>
+        <td class="num">
+          {% if rate is not none %}
+            {% if rate >= 60 %}<strong style="color:var(--green)">{{ rate|int }}%</strong>
+            {% elif rate >= 40 %}<strong style="color:var(--amber)">{{ rate|int }}%</strong>
+            {% else %}<strong style="color:var(--red)">{{ rate|int }}%</strong>
+            {% endif %}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <div class="c-badges">
+            {% if r.get('C3 Count') %}<span class="badge badge-green">C3 ×{{ r['C3 Count'] }}</span>{% endif %}
+            {% if r.get('C2 Count') %}<span class="badge badge-amber">C2 ×{{ r['C2 Count'] }}</span>{% endif %}
+            {% if r.get('C1 Count') %}<span class="badge badge-red">C1 ×{{ r['C1 Count'] }}</span>{% endif %}
+          </div>
+        </td>
+        <td class="text-muted" style="font-size:12px; max-width:200px">{{ r.get('Notes', '') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+  <div class="empty">No scorecard data found.</div>
+{% endif %}
+
+<script>
+const labels = {{ chart_labels | tojson }};
+const data   = {{ chart_data   | tojson }};
+
+new Chart(document.getElementById('rateChart'), {
+  type: 'line',
+  data: {
+    labels,
+    datasets: [{
+      label: 'Confirmation Rate %',
+      data,
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.08)',
+      borderWidth: 2,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      fill: true,
+      tension: 0.3,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b1830',
+        borderColor: '#1e3a5f',
+        borderWidth: 1,
+        titleColor: '#e2e8f0',
+        bodyColor: '#94a3b8',
+        callbacks: { label: ctx => ` ${ctx.parsed.y}% confirmed` }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { color: '#0f2040' } },
+      y: {
+        min: 0, max: 100,
+        ticks: { color: '#64748b', font: { size: 11 }, callback: v => v + '%' },
+        grid: { color: '#0f2040' }
+      }
+    }
+  }
+});
+</script>
+{% endblock %}
