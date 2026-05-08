@@ -41,7 +41,73 @@
   .empty-section { color: var(--dim); font-style: italic; }
 
   .video-link { margin-top: 20px; }
+
+  /* ── Confidence tags ── */
+  .ctag {
+    display: inline-block;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 1px 6px; border-radius: 4px;
+    vertical-align: middle; white-space: nowrap;
+  }
+  .ctag-c3            { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.35); }
+  .ctag-c2            { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.35); }
+  .ctag-c1            { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
+  .ctag-flagged       { background: rgba(239,68,68,0.22);  color: #f87171; border: 1px solid rgba(239,68,68,0.5);  font-weight: 900; font-size: 10px; letter-spacing: 0.07em; }
+  .ctag-wire-ok       { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.35); }
+  .ctag-not-in-wire   { background: rgba(100,116,139,0.15);color: #94a3b8; border: 1px solid rgba(100,116,139,0.35); }
+  .ctag-discrepancy   { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.35); }
 </style>
+
+<script>
+(function () {
+  // Order matters: longest/most-specific patterns first to avoid partial matches.
+  const TAGS = [
+    { re: /\[FLAGGED-VERIFY\]/g,  cls: 'ctag-flagged',     label: 'FLAGGED-VERIFY' },
+    { re: /\[WIRE CONFIRMED\]/g,  cls: 'ctag-wire-ok',     label: 'WIRE CONFIRMED' },
+    { re: /\[NOT IN WIRE\]/g,     cls: 'ctag-not-in-wire', label: 'NOT IN WIRE'    },
+    { re: /\[DISCREPANCY\]/g,     cls: 'ctag-discrepancy', label: 'DISCREPANCY'    },
+    { re: /\[C3\]/g,              cls: 'ctag-c3',          label: 'C3'             },
+    { re: /\[C2\]/g,              cls: 'ctag-c2',          label: 'C2'             },
+    { re: /\[C1\]/g,              cls: 'ctag-c1',          label: 'C1'             },
+  ];
+
+  // Walk text nodes only — never touch attribute values or tag names.
+  function highlightNode(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+
+    nodes.forEach(function (node) {
+      const original = node.textContent;
+      let html = original;
+      let matched = false;
+
+      TAGS.forEach(function (t) {
+        const replaced = html.replace(t.re, function () {
+          matched = true;
+          return '<span class="ctag ' + t.cls + '">[' + t.label + ']</span>';
+        });
+        html = replaced;
+      });
+
+      if (!matched) return;
+
+      const frag = document.createDocumentFragment();
+      const wrapper = document.createElement('span');
+      wrapper.innerHTML = html;
+      while (wrapper.firstChild) frag.appendChild(wrapper.firstChild);
+      node.parentNode.replaceChild(frag, node);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.html-content').forEach(highlightNode);
+  });
+}());
+</script>
 {% endblock %}
 
 {% block content %}
