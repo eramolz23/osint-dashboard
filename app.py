@@ -201,6 +201,33 @@ def weekly_detail(row_index):
     return render_template("weekly_detail.html", rollup=match)
 
 
+# ── Contradictions ───────────────────────────────────────────────────────────
+
+@app.route("/contradictions")
+@require_auth
+def contradictions():
+    all_claims = sheets.get_claims()
+    disc = [c for c in all_claims if c.get("Type", "").strip().upper() == "DISCREPANCY"]
+    disc = sorted(disc, key=lambda x: x.get("Date Added", ""), reverse=True)
+
+    # Count by category (theater)
+    theater_counts = {}
+    for c in disc:
+        cat = c.get("Category", "").strip() or "Other"
+        theater_counts[cat] = theater_counts.get(cat, 0) + 1
+
+    # Ranked highest → lowest
+    ranked = sorted(theater_counts.items(), key=lambda x: x[1], reverse=True)
+
+    return render_template(
+        "contradictions.html",
+        claims=disc,
+        total=len(disc),
+        ranked=ranked,
+        theater_counts=theater_counts,
+    )
+
+
 # ── Flagged Claims ────────────────────────────────────────────────────────────
 
 @app.route("/flagged")

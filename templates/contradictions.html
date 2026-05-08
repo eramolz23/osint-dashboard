@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block title %}Contradictions — OSINT{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  .top-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+    align-items: start;
+  }
+  @media (max-width: 700px) { .top-row { grid-template-columns: 1fr; } }
+
+  /* Total stat */
+  .total-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 28px;
+    text-align: center; min-width: 130px;
+  }
+  .total-value { font-size: 42px; font-weight: 700; color: var(--red); line-height: 1; }
+  .total-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); margin-top: 6px; }
+
+  /* Bar chart card */
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .chart-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  .chart-wrap { position: relative; height: 160px; }
+
+  /* Theater ranking */
+  .ranking { margin-bottom: 28px; }
+  .ranking-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 10px;
+  }
+  .rank-rows { display: flex; flex-direction: column; gap: 6px; }
+  .rank-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 8px 14px;
+  }
+  .rank-pos {
+    font-size: 11px; font-weight: 700; color: var(--dim);
+    width: 18px; text-align: right; flex-shrink: 0;
+  }
+  .rank-name { font-size: 13px; flex: 1; }
+  .rank-count { font-size: 13px; font-weight: 700; color: var(--red); flex-shrink: 0; }
+  .rank-bar-wrap {
+    flex: 1; height: 6px; background: var(--surface-2);
+    border-radius: 3px; overflow: hidden;
+  }
+  .rank-bar { height: 100%; background: var(--red); border-radius: 3px; }
+
+  /* Claim cards */
+  .disc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 12px;
+  }
+  .disc-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--border-2);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .disc-card.open { border-left-color: var(--amber); }
+  .disc-card.conf { border-left-color: var(--green); }
+  .disc-card.cont { border-left-color: var(--red); }
+
+  .disc-claim { font-size: 13px; line-height: 1.6; color: var(--text); }
+
+  .disc-meta {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    font-size: 11px;
+  }
+  .meta-date   { color: var(--dim); white-space: nowrap; }
+  .meta-stream { color: var(--muted); white-space: nowrap; max-width: 170px;
+    overflow: hidden; text-overflow: ellipsis; }
+  .meta-days   { color: var(--dim); white-space: nowrap; margin-left: auto; }
+
+  .status-chip {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 2px 8px;
+    border-radius: 100px; white-space: nowrap;
+  }
+  .chip-open { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .chip-conf { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .chip-cont { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+  .chip-other{ background: var(--surface-2);color: var(--dim);   border: 1px solid var(--border); }
+
+  .section-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Contradictions</h1>
+  <p>All DISCREPANCY-type claims — cases where source claims conflict with wire reporting</p>
+</div>
+
+<!-- Total + bar chart -->
+<div class="top-row">
+  <div class="total-card">
+    <div class="total-value">{{ total }}</div>
+    <div class="total-label">Total Discrepancies</div>
+  </div>
+
+  <div class="chart-card">
+    <div class="chart-title">Discrepancies by Theater</div>
+    <div class="chart-wrap">
+      <canvas id="theaterChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Theater ranking -->
+{% if ranked %}
+<div class="ranking">
+  <div class="ranking-title">Theaters ranked by discrepancy count</div>
+  <div class="rank-rows">
+    {% set max_count = ranked[0][1] %}
+    {% for name, count in ranked %}
+    <div class="rank-row">
+      <span class="rank-pos">{{ loop.index }}</span>
+      <span class="rank-name">{{ name }}</span>
+      <div class="rank-bar-wrap">
+        <div class="rank-bar" style="width: {{ (count / max_count * 100)|int }}%"></div>
+      </div>
+      <span class="rank-count">{{ count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Claim cards -->
+{% if claims %}
+<div class="section-title">All discrepancies — newest first</div>
+<div class="disc-grid">
+  {% for c in claims %}
+    {% set st = c.get('Status', '')|upper %}
+    {% if st == 'OPEN' %}{% set card_cls = 'open' %}
+    {% elif st == 'CONFIRMED' %}{% set card_cls = 'conf' %}
+    {% elif st == 'CONTRADICTED' %}{% set card_cls = 'cont' %}
+    {% else %}{% set card_cls = '' %}{% endif %}
+
+  <div class="disc-card {{ card_cls }}">
+    <div class="disc-claim">{{ c.get('Claim', '—') }}</div>
+    <div class="disc-meta">
+      {% if st == 'OPEN' %}<span class="status-chip chip-open">Open</span>
+      {% elif st == 'CONFIRMED' %}<span class="status-chip chip-conf">Confirmed</span>
+      {% elif st == 'CONTRADICTED' %}<span class="status-chip chip-cont">Contradicted</span>
+      {% else %}<span class="status-chip chip-other">{{ st or '—' }}</span>{% endif %}
+
+      {% if c.get('Category') %}<span class="badge badge-blue">{{ c['Category'] }}</span>{% endif %}
+      <span class="meta-date">{{ c.get('Date Added', '—') }}</span>
+      {% if c.get('Stream Title') %}<span class="meta-stream" title="{{ c['Stream Title'] }}">{{ c['Stream Title'] }}</span>{% endif %}
+      {% if c.get('Days Open') %}<span class="meta-days">{{ c['Days Open'] }}d</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty">No DISCREPANCY claims found.</div>
+{% endif %}
+
+<script>
+(function () {
+  const labels = {{ ranked | map(attribute=0) | list | tojson }};
+  const counts = {{ ranked | map(attribute=1) | list | tojson }};
+
+  const ctx = document.getElementById('theaterChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: counts,
+        backgroundColor: 'rgba(239,68,68,0.5)',
+        borderColor: 'rgba(239,68,68,0.85)',
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { size: 11 } },
+          grid:  { color: '#1e3a5f' },
+        },
+        y: {
+          ticks: { color: '#64748b', font: { size: 11 }, stepSize: 1 },
+          grid:  { color: '#1e3a5f' },
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}());
+</script>
+{% endblock %}
