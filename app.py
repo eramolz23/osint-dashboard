@@ -2,7 +2,7 @@ import os
 from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask import Flask, flash, redirect, render_template, request, send_from_directory, session, url_for
 
 import sheets
 
@@ -154,6 +154,14 @@ def search():
         ]
         results = sorted(results, key=lambda x: x.get("Date", ""), reverse=True)
     return render_template("search.html", results=results, q=q)
+
+
+# ── PWA ───────────────────────────────────────────────────────────────────────
+
+@app.route("/sw.js")
+def service_worker():
+    # Must be served from root scope so it can control all pages
+    return send_from_directory("static", "sw.js", mimetype="application/javascript")
 
 
 # ── Error handlers ────────────────────────────────────────────────────────────

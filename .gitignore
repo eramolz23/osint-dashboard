@@ -3,6 +3,7 @@
 *.json
 !package.json
 !vercel.json
+!static/manifest.json
 
 # Python
 __pycache__/
