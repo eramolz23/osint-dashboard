@@ -179,6 +179,7 @@
       <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Briefs</a>
       <a href="{{ url_for('scorecard') }}" {% if request.endpoint == 'scorecard' %}class="active"{% endif %}>Scorecard</a>
       <a href="{{ url_for('claims') }}" {% if request.endpoint == 'claims' %}class="active"{% endif %}>Claims</a>
+      <a href="{{ url_for('chat') }}" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
     </div>
     <form class="nav-search" action="{{ url_for('search') }}" method="get">
       <input type="search" name="q" placeholder="Search briefs…" value="{{ request.args.get('q', '') }}">

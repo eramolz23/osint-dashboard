@@ -1,8 +1,9 @@
 import os
+from datetime import datetime, timedelta
 from functools import wraps
 
 from dotenv import load_dotenv
-from flask import Flask, flash, redirect, render_template, request, send_from_directory, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
 import sheets
 
@@ -11,6 +12,18 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
+
+SYSTEM_PROMPT = """You are an OSINT analyst assistant embedded in an intelligence dashboard.
+You have access to daily intelligence briefs compiled from stream analysis of The Enforcer,
+a TIER C source. Maximum confidence on any claim from this source is C3 (wire-confirmed).
+
+Rules:
+- Answer ONLY from the provided brief data. Do not use outside knowledge.
+- Always cite the date of the brief you are referencing.
+- Use confidence tags in your answers: [C3] wire-confirmed, [C2] plausible/partially confirmed, [C1] unverified claim.
+- If the data does not contain an answer, say so explicitly.
+- Be concise, direct, and analytical. This is an operational intelligence context.
+- Do not speculate beyond what the source material supports."""
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
@@ -154,6 +167,84 @@ def search():
         ]
         results = sorted(results, key=lambda x: x.get("Date", ""), reverse=True)
     return render_template("search.html", results=results, q=q)
+
+
+# ── Chat ──────────────────────────────────────────────────────────────────────
+
+@app.route("/chat")
+@require_auth
+def chat():
+    return render_template("chat.html")
+
+
+@app.route("/api/chat", methods=["POST"])
+@require_auth
+def api_chat():
+    import google.generativeai as genai
+
+    data = request.get_json(force=True) or {}
+    question = (data.get("message") or "").strip()
+    if not question:
+        return jsonify({"error": "Empty message"}), 400
+
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        return jsonify({"error": "GEMINI_API_KEY is not configured on this server."}), 500
+
+    # Fetch Intel Log and filter to last 30 days
+    briefs = sheets.get_intel_log()
+    cutoff = datetime.utcnow().date() - timedelta(days=30)
+
+    def parse_date(s):
+        for fmt in ("%B %d, %Y", "%B %d %Y", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(s.strip(), fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    # Deduplicate by (date, title) and keep only recent rows
+    seen, recent = set(), []
+    for b in briefs:
+        d = parse_date(b.get("Date", ""))
+        if not d or d < cutoff:
+            continue
+        key = (str(d), b.get("Video Title", ""))
+        if key not in seen:
+            seen.add(key)
+            recent.append(b)
+
+    recent.sort(key=lambda b: b.get("Date", ""), reverse=True)
+
+    def trunc(s, n):
+        return s[:n] + "…" if len(s) > n else s
+
+    sections = []
+    for b in recent:
+        lines = [f"=== {b.get('Date', '?')} — {b.get('Video Title', '?')} ==="]
+        if b.get("TAC-INT Brief"):
+            lines.append("TAC-INT:\n" + trunc(b["TAC-INT Brief"], 4000))
+        if b.get("Wire News"):
+            lines.append("WIRE NEWS:\n" + trunc(b["Wire News"], 2000))
+        if b.get("Reddit OSINT"):
+            lines.append("REDDIT OSINT:\n" + trunc(b["Reddit OSINT"], 1000))
+        sections.append("\n".join(lines))
+
+    context = "\n\n".join(sections) if sections else "(No briefs found for the last 30 days.)"
+
+    prompt = (
+        f"INTELLIGENCE BRIEFS ({len(recent)} entries, last 30 days):\n\n"
+        f"{context}\n\n"
+        f"ANALYST QUESTION: {question}"
+    )
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(
+        model_name="gemini-2.5-flash",
+        system_instruction=SYSTEM_PROMPT,
+    )
+    response = model.generate_content(prompt)
+    return jsonify({"response": response.text, "brief_count": len(recent)})
 
 
 # ── PWA ───────────────────────────────────────────────────────────────────────
