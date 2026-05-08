@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% block title %}Confidence Calibration — OSINT{% endblock %}
+
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+  /* ── Summary row ── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .sum-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px; text-align: center;
+  }
+  .sum-value { font-size: 32px; font-weight: 700; line-height: 1.1; }
+  .sum-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); margin-top: 5px; }
+  .sum-card.rate  .sum-value { color: var(--accent); }
+  .sum-card.total .sum-value { color: var(--text); }
+  .sum-card.trend-improving .sum-value { color: var(--green); }
+  .sum-card.trend-declining .sum-value { color: var(--red); }
+  .sum-card.trend-stable    .sum-value { color: var(--muted); }
+  .sum-card.sessions        .sum-value { color: var(--muted); }
+
+  /* ── Chart cards ── */
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+    margin-bottom: 20px;
+  }
+  .chart-card-title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  .chart-wrap-tall   { position: relative; height: 220px; }
+  .chart-wrap-medium { position: relative; height: 180px; }
+
+  /* ── Flagged resolution ── */
+  .resolution-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  @media (max-width: 540px) { .resolution-grid { grid-template-columns: 1fr; } }
+
+  .res-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px; text-align: center;
+  }
+  .res-pct  { font-size: 28px; font-weight: 700; line-height: 1; }
+  .res-count { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .res-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); margin-top: 6px; }
+  .res-card.conf .res-pct { color: var(--green); }
+  .res-card.cont .res-pct { color: var(--red); }
+  .res-card.open .res-pct { color: var(--amber); }
+
+  /* Stacked progress bar */
+  .res-bar {
+    height: 8px; border-radius: 4px; overflow: hidden;
+    display: flex; margin-top: 14px; margin-bottom: 20px;
+    background: var(--surface-2);
+  }
+  .res-bar-conf { background: var(--green); }
+  .res-bar-cont { background: var(--red); }
+  .res-bar-open { background: var(--amber); }
+
+  /* ── Verdict ── */
+  .verdict-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+  }
+  .verdict-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; margin-bottom: 12px;
+  }
+  .verdict-title.reliable    { color: var(--green); }
+  .verdict-title.mixed       { color: var(--amber); }
+  .verdict-title.caution     { color: var(--red); }
+  .verdict-body {
+    font-size: 14px; line-height: 1.75; color: var(--muted);
+  }
+
+  /* section label */
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 10px; margin-top: 4px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Confidence Calibration</h1>
+  <p>Evaluating The Enforcer's predictive accuracy against wire reporting</p>
+</div>
+
+<!-- 1. Overall accuracy summary -->
+<div class="summary-row">
+  <div class="sum-card total">
+    <div class="sum-value">{{ total_claims }}</div>
+    <div class="sum-label">Claims Tracked</div>
+  </div>
+  <div class="sum-card sessions">
+    <div class="sum-value">{{ session_count }}</div>
+    <div class="sum-label">Sessions</div>
+  </div>
+  <div class="sum-card rate">
+    <div class="sum-value">{{ overall_rate }}%</div>
+    <div class="sum-label">Confirmation Rate</div>
+  </div>
+  <div class="sum-card trend-{{ trend }}">
+    <div class="sum-value">
+      {% if trend == 'improving' %}↑
+      {% elif trend == 'declining' %}↓
+      {% else %}→{% endif %}
+    </div>
+    <div class="sum-label">Trend — {{ trend|capitalize }}</div>
+  </div>
+</div>
+
+<!-- 2. Line chart: confirmation rate over time -->
+{% if chart_labels %}
+<div class="chart-card">
+  <div class="chart-card-title">Confirmation Rate Over Time</div>
+  <div class="chart-wrap-tall">
+    <canvas id="lineChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
+<!-- 3. Theater breakdown bar chart -->
+{% if theater_labels %}
+<div class="chart-card">
+  <div class="chart-card-title">Confirmation Rate by Theater</div>
+  <div class="chart-wrap-medium">
+    <canvas id="theaterChart"></canvas>
+  </div>
+</div>
+{% endif %}
+
+<!-- 4. Flagged claim resolution -->
+{% if f_total > 0 %}
+<div class="section-label">Flagged Claim Resolution — {{ f_total }} FLAGGED-VERIFY claims</div>
+<div class="resolution-grid">
+  <div class="res-card conf">
+    <div class="res-pct">{{ f_conf_pct }}%</div>
+    <div class="res-count">{{ f_conf }} claims</div>
+    <div class="res-label">Confirmed</div>
+  </div>
+  <div class="res-card cont">
+    <div class="res-pct">{{ f_cont_pct }}%</div>
+    <div class="res-count">{{ f_cont }} claims</div>
+    <div class="res-label">Contradicted</div>
+  </div>
+  <div class="res-card open">
+    <div class="res-pct">{{ f_open_pct }}%</div>
+    <div class="res-count">{{ f_open }} claims</div>
+    <div class="res-label">Still Open</div>
+  </div>
+</div>
+<div class="res-bar">
+  <div class="res-bar-conf" style="width:{{ f_conf_pct }}%"></div>
+  <div class="res-bar-cont" style="width:{{ f_cont_pct }}%"></div>
+  <div class="res-bar-open" style="width:{{ f_open_pct }}%"></div>
+</div>
+{% endif %}
+
+<!-- 5. Source Reliability Verdict -->
+<div class="verdict-card">
+  {% if overall_rate >= 60 %}
+    <div class="verdict-title reliable">Source Reliability Verdict — Reliable</div>
+  {% elif overall_rate >= 40 %}
+    <div class="verdict-title mixed">Source Reliability Verdict — Mixed</div>
+  {% else %}
+    <div class="verdict-title caution">Source Reliability Verdict — Treat With Caution</div>
+  {% endif %}
+  <div class="verdict-body">{{ verdict }}</div>
+</div>
+
+<script>
+(function () {
+  const gridColor  = '#1e3a5f';
+  const tickColor  = '#64748b';
+  const tickFont   = { size: 11 };
+
+  // Line chart
+  {% if chart_labels %}
+  new Chart(document.getElementById('lineChart').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: {{ chart_labels | tojson }},
+      datasets: [{
+        data: {{ chart_data | tojson }},
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59,130,246,0.08)',
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: '#3b82f6',
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor, font: tickFont, maxTicksLimit: 10 }, grid: { color: gridColor } },
+        y: {
+          min: 0, max: 100,
+          ticks: { color: tickColor, font: tickFont, callback: v => v + '%' },
+          grid: { color: gridColor },
+        }
+      }
+    }
+  });
+  {% endif %}
+
+  // Theater bar chart
+  {% if theater_labels %}
+  const rates  = {{ theater_rates  | tojson }};
+  const colors = rates.map(r => r >= 60 ? 'rgba(34,197,94,0.6)'
+                                : r >= 40 ? 'rgba(245,158,11,0.6)'
+                                :           'rgba(239,68,68,0.6)');
+  const borders = rates.map(r => r >= 60 ? 'rgba(34,197,94,0.9)'
+                                 : r >= 40 ? 'rgba(245,158,11,0.9)'
+                                 :           'rgba(239,68,68,0.9)');
+  new Chart(document.getElementById('theaterChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: {{ theater_labels | tojson }},
+      datasets: [{
+        data: rates,
+        backgroundColor: colors,
+        borderColor: borders,
+        borderWidth: 1,
+        borderRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: tickColor, font: tickFont }, grid: { color: gridColor } },
+        y: {
+          min: 0, max: 100,
+          ticks: { color: tickColor, font: tickFont, callback: v => v + '%' },
+          grid: { color: gridColor },
+        }
+      }
+    }
+  });
+  {% endif %}
+}());
+</script>
+{% endblock %}

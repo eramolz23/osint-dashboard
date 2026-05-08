@@ -183,6 +183,7 @@
       <a href="{{ url_for('timeline') }}" {% if request.endpoint == 'timeline' %}class="active"{% endif %}>Timeline</a>
       <a href="{{ url_for('flagged') }}" {% if request.endpoint == 'flagged' %}class="active"{% endif %}>Flagged</a>
       <a href="{{ url_for('contradictions') }}" {% if request.endpoint == 'contradictions' %}class="active"{% endif %}>Contradictions</a>
+      <a href="{{ url_for('calibration') }}" {% if request.endpoint == 'calibration' %}class="active"{% endif %}>Calibration</a>
       <a href="{{ url_for('chat') }}" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
     </div>
     <form class="nav-search" action="{{ url_for('search') }}" method="get">
