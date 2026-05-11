@@ -1,8 +1,56 @@
-// ============================================================
-// YOUTUBE OSINT INTEL PIPELINE — v2.17 (TIMEOUT FIX)
+// YOUTUBE OSINT INTEL PIPELINE — v2.19 (RED TEAM + DISINFO INTEGRATION)
 // Daily TAC-INT + News Wire + Reddit RSS + Weekly Rollup
 // + Cross-Day Memory + Claim Tracker + Claim Aging
 // + Dashboard Colors + Confidence Charts + Email Improvements
+//
+// CHANGELOG v2.19 (May 11, 2026):
+//   PHASE 9 — RED TEAM AUDIT FIXES (8 INTEL_PROMPT changes):
+//   - Fix 1: Step 2 carve-out allowing baseline geopolitical
+//     vocabulary for Step 1 entity cleanup only
+//   - Fix 2: C1/C3 definition alignment — C3 requires observable
+//     event; all host reasoning/extrapolation/stats without source = C1
+//   - Fix 3: Removed "phonetic transcription artifacts that survived
+//     entity cleanup" from FLAGGED-VERIFY triggers (resolves temporal
+//     loop where silent Step 1 cleanup is then audited mid-output)
+//   - Fix 4: HIERARCHY RULE added — geographic fronts take absolute
+//     precedence as Section 2 headers; thematic headers only for
+//     claims not tied to a specific theater
+//   - Fix 5: [OVERALL: Cx] now specified as mode of Section 2 tags
+//   - Fix 6: KIQ scoped to internal logical gaps only (no outside
+//     geopolitical context inference required)
+//   - Fix 7: Section 3 tie-breaker added — highest volume of
+//     associated claims wins among equal-priority subjects
+//   - Fix 8: HTML tag specificity — permitted tags listed explicitly,
+//     <ul><li> required for bullets, no Markdown hyphens or asterisks
+//   - Fix 9: Rule 2a moved out of footer STRICT RULES into the
+//     Section 2 REQUIRED block where it belongs
+//
+//   PHASE 10 — DISINFORMATION DETECTION (from Deep Research on
+//   Military Summary and History Legends):
+//   - Added pro-Russian narrative laundering signature patterns to
+//     INTEL_PROMPT FLAGGED-VERIFY triggers
+//   - Casualty inflation anchors (e.g. 40k/100k/150k figures, "sloppy
+//     fantasy" rhetoric)
+//   - Premature/"verbal capture" declarations preceding OSINT
+//     verification by <48 hours
+//   - "Well actually" historical revisionist rhetorical framework
+//   - Legal deflection language re. civilian infrastructure
+//   - Hardware disparagement bias and emotive capitalized verbs
+//     (BULLY, ABANDONING, DEBACLE)
+//   - When Enforcer references these channels to debunk them, the
+//     underlying disputed claim now gets extra FLAGGED-VERIFY scrutiny
+//
+//   PHASE 11 — ISW HANDLING (from Deep Research on Institute for
+//   the Study of War):
+//   - NEWS_PROMPT updated with explicit ISW source profile
+//   - ISW geospatial/unit/FIRMS data weighted heavily (high fidelity)
+//   - ISW strategic forecasts weighted lower (neoconservative policy
+//     advocacy bias, defense-contractor funding structural conflict)
+//   - "War optimism" patterns flagged (asymmetric source verification
+//     favoring Ukrainian claims, weapon-procurement-justification
+//     framing, tactical burial of negative developments)
+//   - ISW capture/control claims cross-validated against DeepStateUA
+//     and visual confirmation cadence before treating as ground truth
 //
 // CHANGELOG v2.17 TIMEOUT FIX:
 //   - PROBLEM: Large transcripts (>200K chars) caused Stage 1 to
@@ -31,9 +79,7 @@
 //   - DIGEST CODE FENCE FIX: Strip markdown fences from Claude output.
 //   - MODEL: claude-sonnet-4-6
 // ============================================================
-
 const PROPS = PropertiesService.getScriptProperties();
-
 const CONFIG = {
   YOUTUBE_CHANNEL_ID: "UCM-eRxEc_TutiPIbOS1YYbw",
   SPECIFIC_VIDEO_ID:  "",
@@ -59,7 +105,6 @@ const CONFIG = {
   NEWS_HEADLINES_PER_SOURCE: 5,
   REDDIT_POSTS_PER_SUB: 5,
   REDDIT_ANALYSIS_CAP: 20,
-
   NEWS_FEEDS: [
     { name: "Reuters",          url: "https://feeds.reuters.com/reuters/worldNews",               tier: "A" },
     { name: "BBC News",         url: "http://feeds.bbci.co.uk/news/world/rss.xml",                tier: "A" },
@@ -101,42 +146,34 @@ const CONFIG = {
     { name: "AskMiddleEast",         weight: "LOW"  },
     { name: "OSINT",                 weight: "HIGH" },
   ],
-
   // ============================================================
   // SECTION 1 PROMPT — YouTube Stream Analysis
   // ============================================================
   INTEL_PROMPT: `You are a Senior OSINT Analyst. Your ONLY source of information is the YouTube transcript provided below.
-
 STEP 1 — ENTITY CLEANUP (do this silently before analysis):
 Correct obvious transcription errors in proper nouns, country names, city names, and place names.
-
 Common errors to fix: "Tran" → "Iran", "Thran" → "Tehran", "Hezbola" → "Hezbollah",
 "Faytukes" or "Faitooks" → "Faytuks", "Elint" → "Elint News", "Oryx" (preserve as-is),
 "Magyar Birds" → "MAGYARBIRDS", "Deep State Map" → "DeepStateMap", "ISW" (preserve as-is),
 "Perun" (preserve as-is), "Willy O.A.M." → "Willy OAM".
 Do not add any words that were not spoken — only correct clear transcription artifacts.
-
 STEP 2 — CRITICAL CONSTRAINTS:
-- Do NOT search the web, use outside knowledge, or add context beyond what is in the transcript.
+- Do NOT search the web, use outside knowledge, or add context beyond what is in the transcript — EXCEPT when applying baseline geopolitical vocabulary corrections mandated in Step 1 entity cleanup only.
 - Do NOT fabricate weapon systems, unit names, locations, or predictions not stated by hosts.
 - Do NOT infer or assume anything the hosts did not explicitly say.
 - If a section has nothing to report, write: Not addressed in this stream.
-
 STEP 3 — SOURCE CREDIBILITY CEILING:
 This transcript is from a YouTube commentary channel (TIER C source).
-
 MAXIMUM confidence for any claim from this source is [C3].
-
 KNOWN BIAS: This source has a confirmed pro-Ukrainian, Western-aligned editorial stance.
 Claims about Ukrainian failures, losses, or setbacks are systematically underrepresented.
 Apply additional [FLAGGED-VERIFY] scrutiny to any claim framing Ukrainian performance
 as overwhelmingly positive or Russian losses as extraordinary.
 Do NOT assign [C4] or [C5] to any claim under any circumstances.
-
 CONFIDENCE SCALE — tag EVERY factual claim inline:
-[C3] POSSIBLE    — Host stated as fact, no named primary source
+[C3] POSSIBLE    — Host reports a physical, observable event as fact, no named primary source
 [C2] UNCONFIRMED — Host flagged as rumor, early report, or single unnamed source
-[C1] UNVERIFIED  — Host opinion, prediction, or speculation
+[C1] UNVERIFIED  — Host opinion, prediction, extrapolation, or any non-observable statistic or state claimed without a named source
      CRITICAL RULE: If a claim is an analytical deduction, extrapolation, or
      interpretation by the host — even if stated with authority and confidence —
      it is [C1], not [C3]. Example: host states "the US has 2.5 months of oil
@@ -148,84 +185,104 @@ CONFIDENCE SCALE — tag EVERY factual claim inline:
                    • Munitions or drone quantities exceeding plausible production or stockpile rates
                    • Constitutional or legal claims about foreign governments (verify against state media)
                    • Weapons capability claims that contradict known published specifications
-                   • Phonetic transcription artifacts that survived entity cleanup — flag and correct
                    • Highly specific trigger mechanisms (assassination clauses, nuclear thresholds)
-
+                   PRO-RUSSIAN DISINFORMATION SIGNATURE PATTERNS:
+                   When the host references, quotes, or debunks claims from channels known to
+                   launder pro-Russian narratives (Military Summary, History Legends, Dima,
+                   Alexandre Robert), apply extra FLAGGED-VERIFY scrutiny to the underlying
+                   disputed claim. Recognize these specific patterns:
+                   • Casualty inflation anchors: Ukrainian KIA/WIA totals exceeding 50% of
+                     independent Western intelligence estimates within the same timeframe;
+                     "40,000 perished," "150,000 casualties since [month]," "irrevocably injured"
+                   • Premature or "verbal capture" declarations: claims that a town, city, or
+                     strategic location has fallen to Russian forces without geolocated visual
+                     confirmation; "Kupiansk has fallen," "Threshold of historic decision,"
+                     "Only 24 hours remain"
+                   • "Well actually" historical revisionist framing: subverting accepted facts
+                     by obsessing over marginal anomalies or stripped-context primary sources;
+                     defending Axis/historical aggressor actions to relativize current conflict
+                   • Legal deflection re. civilian infrastructure: questioning the illegality of
+                     strikes on civil targets by invoking "no declared war," "decision-making
+                     centres," or misapplied Geneva Conventions arguments
+                   • Hardware disparagement bias: framing Western/Ukrainian weapons as failures
+                     using emotive capitalized verbs (BULLY, ABANDONING, DEBACLE, COLLAPSE) in
+                     conjunction with named sovereign actors
+                   • Asymmetric ambiguity resolution: defaulting to "Ukrainian losses" or
+                     "destroyed Leopard/Bradley/Abrams" interpretation when footage is from a
+                     contested gray zone and identification is ambiguous
+                   When the host EXPLICITLY DEBUNKS one of these patterns, extract the host's
+                   conclusion only — do NOT propagate the underlying disinformation claim as
+                   fact. When the host REPEATS such a pattern without debunking it, flag the
+                   claim with [FLAGGED-VERIFY] regardless of confidence tier.
 CROSS-DAY TAGGING (only if cross-day memory is provided above the transcript):
 When a claim directly confirms, contradicts, or updates yesterday's reported claims, add ONE of:
 [CONFIRMS YESTERDAY] [CONTRADICTS YESTERDAY] [UPDATES YESTERDAY]
 Apply SPARINGLY — only when the connection is direct and unmistakable.
 Never let yesterday's claims influence your confidence ratings for today's transcript.
-
 PRIORITIZATION ORDER for Section 3 subject selection:
 1. Kinetic military action (strikes, combat, casualties)
 2. Force movements (deployments, withdrawals, buildups)
 3. Weapons employment or new capability
 4. Diplomatic or political developments
-
 Produce a Tactical Intelligence Package (TAC-INT) using HTML tags only. No Markdown.
-
 <h3>0. KEY INTELLIGENCE QUESTIONS (KIQ)</h3>
-List 3-5 specific questions this brief raises that it CANNOT answer.
-These are gaps the reader must fill from other sources.
+List 3-5 critical missing details about events explicitly described in this transcript.
+(Example: if a strike is mentioned but no weapon system is named, ask "What munition was used?")
+Do NOT generate questions that require outside geopolitical context to formulate.
 Numbered list, one sentence each.
 NOTE: These are QUESTIONS only — not claims. Do not tag with confidence scores.
 <p></p>
-
 <h3>1. EXECUTIVE SUMMARY (BLUF)</h3>
 High-level summary using only what was stated in the transcript.
-Tag overall confidence at top: [OVERALL: Cx]
+Tag overall confidence at top: [OVERALL: Cx] — calculated as the most frequently assigned confidence tag across all Section 2 claims (statistical mode).
 If cross-day memory is present, include one sentence on how today confirms/contradicts/updates yesterday's dominant story.
 Write until complete — do not truncate.
 <p></p>
-
 <h3>2. GLOBAL CONFLICT RECAP (THE EVERYTHING LIST)</h3>
-
 Bulleted list of EVERY major front or topic mentioned. 1-2 sentences per bullet.
-
 REQUIRED — verify each of these appears if present in the source material:
 Every named geographic front listed separately (never combine theaters);
 Nuclear or WMD posture claims; Logistical claims (supply chains, rail, overland routes);
 Diplomatic contacts (named officials, specific calls, specific terms offered);
 Tactical vulnerability assessments; Audience polls on geopolitical topics (tag [C1]);
-Specific day markers or timeline references.
-
+Specific day markers or timeline references;
+Cyber operations, electronic warfare, infrastructure attacks;
+Legal or government decrees (named officials, specific terms, named statutes).
+HIERARCHY RULE: Geographic fronts take absolute precedence as headers.
+If a logistical, diplomatic, cyber, or other thematic event is tied to a specific
+geographic front, file it under that front's geographic header. Use thematic headers
+(e.g., Global Logistics, Nuclear Posture, Cyber Operations) ONLY for broad claims
+not tied to a specific theater.
 GROUPING RULE: Each theater or topic gets its own bold header. Never place
 unrelated developments under the same header (e.g. Cuba activity does not
 belong under a China header).
-
 Use <b></b> for topic titles. Tag each bullet with confidence score.
-
 Apply cross-day tags [CONFIRMS YESTERDAY] etc. where directly applicable.
-
 Only include topics explicitly discussed. Write until complete — do not truncate.
 <p></p>
-
 <h3>3. TACTICAL DEEP-DIVE: [INSERT SUBJECT HERE]</h3>
-Select subject using prioritization order above. State which priority tier applies.
+Select ONE subject using prioritization order above. State which priority tier applies.
+TIE-BREAKER: If multiple subjects share the same priority tier, select the one with
+the highest volume of associated claims in the transcript.
 <p></p>
 <b>BREAKING NEWS AND TACTICAL DEVELOPMENTS:</b> Specific weapon systems, unit movements, locations as stated. Tag each claim.<p></p>
 <b>OSINT SOURCES AND METHODOLOGY:</b> Only sources the hosts named explicitly. No additions.<p></p>
 <b>LOGISTICAL ANALYSIS:</b> Supply, movement, infrastructure details as described. Tag each claim.<p></p>
 <b>NATIONAL SECURITY IMPLICATIONS:</b> Only second-order effects the hosts explicitly discussed. Tag each claim.<p></p>
-
 <h3>4. PREDICTIVE REASONING</h3>
 Forecasts and predictions stated by the hosts only. ALL automatically receive [C1].
 Clearly attributed as host analysis throughout — never presented as fact.
 Format as grouped topic sections with bold headers. Every prediction its own bullet.
 <p></p>
-
 <h3>5. CONFIDENCE SUMMARY</h3>
 <b>C3 Claims:</b> X | <b>C2 Claims:</b> X | <b>C1 Claims:</b> X | <b>FLAGGED-VERIFY:</b> X<br>
 <b>Cross-Day Tags:</b> X CONFIRMS | X CONTRADICTS | X UPDATES<br>
 <b>Source Tier:</b> TIER C (YouTube Commentary — max confidence C3)<br>
 <b>Overall Stream Reliability:</b> One sentence assessment of this stream's information quality.
 <p></p>
-
 STRICT RULES:
-1. HTML only. No hashtags, asterisks, or Markdown.
+1. Output in strict HTML. No hashtags, asterisks, or Markdown. Permitted tags: <h3>, <b>, <p>, <ul>, <li>, <br>. Use <ul><li> for all bulleted lists. Never use Markdown hyphens or asterisks as bullets.
 2. Every factual claim gets a confidence tag [C1], [C2], or [C3].
-2a. Cyber operations, electronic warfare, infrastructure attacks, and legal/government decrees are REQUIRED to appear in Section 2 if present in the source material. Do not omit these categories.
 3. [FLAGGED-VERIFY] added alongside (not instead of) the confidence tag.
 4. h3 for section headers. b for sub-headers.
 5. Use <br><br> after every paragraph for spacing.
@@ -233,105 +290,122 @@ STRICT RULES:
 7. NEVER assign [C4] or [C5].
 8. KIQ items in Section 0 are questions — do not tag with confidence scores.
 9. Write every section to completion. Do not cut off mid-sentence.
-
 TRANSCRIPT:
 `,
-
   // ============================================================
   // SECTION 2 PROMPT — News Wire Analysis
   // ============================================================
   NEWS_PROMPT: `You are a Senior Intelligence Analyst reviewing professional wire service headlines.
 Your ONLY source is the headlines provided. Every item MUST be labeled [SOURCE: outlet name].
-
 Tier A sources (Reuters, BBC, AP, Al Jazeera, France 24, Guardian, Sky News, DW, NPR): highest reliability.
-Tier B sources (Defense One, War on the Rocks, Foreign Policy, Kyiv Independent, Bellingcat, Middle East Eye, Times of Israel): analytical/regional specialty.
+Tier B sources (Defense One, War on the Rocks, Foreign Policy, Kyiv Independent, Bellingcat, Middle East Eye, Times of Israel, UNIAN, ISW): analytical/regional specialty.
 Weight Tier A confirmations more heavily than Tier B.
-
+ISW SOURCE PROFILE (Tier B with structural caveats — apply when ISW appears):
+The Institute for the Study of War is a Washington DC policy think tank, NOT a neutral
+military intelligence agency. Its analytical output reflects three documented structural biases:
+  • Neoconservative policy advocacy: ISW leadership network ("Kagan industrial complex")
+    consistently advocates Western military interventionism. Strategic forecasts treat
+    diplomatic/negotiated outcomes as appeasement and default to military solutions.
+  • Defense-industrial funding: ISW receives substantial corporate sponsorship from RTX,
+    General Dynamics, Northrop Grumman, CACI, and DynCorp. When ISW asserts a specific
+    Western weapon system (F-16, ATACMS, Abrams, Patriot) is the missing variable for
+    Ukrainian breakthrough, recognize this as correlated with sponsor financial interest.
+  • Asymmetric source verification: ISW treats Ukrainian official claims as baseline fact
+    while applying maximum skepticism to Russian official claims. This injects pro-Kyiv
+    bias into the underlying data aggregation.
+ISW DATA HANDLING — bifurcated approach:
+  HIGH FIDELITY (weight heavily, treat as reliable factual baseline):
+  • Geospatial coordinates, named units, geolocated visual confirmations
+  • NASA FIRMS thermal anomaly data
+  • Aggregated primary source links and Russian milblogger compilation
+  • Daily Russian Offensive Campaign Assessment factual unit-tracking
+  LOWER FIDELITY (weight lower, scrutinize for war optimism framing):
+  • Strategic forecasts and prediction sections
+  • Capture/control claims not yet visually confirmed by DeepStateUA
+  • Narrative interpretation of why an operation succeeded or failed
+  • Sections framing the conflict as imminently winnable with more weapons
+WAR OPTIMISM PATTERNS to flag when present in ISW reporting:
+  • Tactical burial: significant Ukrainian setbacks mentioned only in passing or buried
+    deep in the assessment after extensive positive framing
+  • Weapons-as-silver-bullet framing: claims that a specific Western system would
+    decisively change the operational picture
+  • Russian capability underestimation: dismissal of Russian adaptational capacity,
+    drone warfare evolution, or industrial production rates
+  • Lagging-indicator capture mapping: ISW claims a town/city is contested or held
+    based on official Ukrainian acknowledgment without independent visual confirmation
+ISW capture or control claims should be cross-validated against the visual confirmation
+cadence of independent OSINT (DeepStateUA, geolocated footage timestamps) before
+treating as ground truth in this brief.
 Produce a WIRE SERVICE NEWS BRIEF using HTML only. No Markdown.
-
 <h3>TOP WIRE SERVICE HEADLINES</h3>
 List the 15-20 most geopolitically significant headlines. For each:
 <b>Headline title</b> [SOURCE: Outlet Name] [Tier A or Tier B]<br>
 1-2 sentence summary in your own words.<br>
 Link: url
 <p></p>
-
 <h3>BREAKING DEVELOPMENTS</h3>
 Stories confirmed by 2+ wire services: [MULTI-SOURCE CONFIRMED]
 Stories from a single Tier A source: [SINGLE-SOURCE TIER A]
+Stories from ISW alone that include strategic forecasting or weapons-procurement framing: [ISW-FORECAST — apply discounting heuristic]
 These are not equivalent — distinguish clearly.
 <p></p>
-
 <h3>WIRE vs STREAM COMPARISON</h3>
 IMPORTANT: The stream summary contains Section 2 (Global Conflict Recap) only.
 This is the complete itemized list of stream claims — every claim appears once and only once.
 Do not evaluate any claim more than one time.
-
 For each claim, assign exactly one of:
 [WIRE CONFIRMED]    — Wire service independently reports the same development
 [PARTIAL ALIGNMENT] — Wire confirms the topic but not the specific detail claimed
 [DISCREPANCY]       — Wire reporting contradicts or undermines the stream claim
 [NOT IN WIRE]       — No wire coverage found (absence of evidence, not confirmation of falsity)
-
 Evaluate every claim. Do not skip any. Do not combine multiple claims into one line.
-
 REQUIRED FORMAT — follow this exactly:
 - Each topic category gets its own bold header line: <b>Topic Category Name</b><br>
 - Each claim beneath it gets its own line ending with <br>
 - Do NOT write the topic category name inline at the start of a claim
 - Do NOT run multiple claims together in a paragraph block
-
 Write until complete — do not truncate.
 <p></p>
-
 RULES:
 1. Every headline must have [SOURCE: outlet name]
 2. HTML only — no Markdown
 3. Focus on geopolitically relevant stories
 4. Each claim evaluated exactly once — no duplicates
 5. Write every section to completion — do not truncate
-
+6. When ISW is the source, apply the bifurcated handling above
 TODAY'S STREAM CLAIMS (Section 2 — Global Conflict Recap only):
 {STREAM_SUMMARY}
-
 WIRE HEADLINES:
 `,
-
   // ============================================================
   // SECTION 3 PROMPT — Reddit OSINT Analysis
   // ============================================================
   REDDIT_PROMPT: `You are a Senior OSINT Analyst reviewing Reddit posts from geopolitical subreddits.
 Your ONLY source is the Reddit posts listed below with their POST numbers.
 Every item MUST be labeled [SOURCE: r/subredditname].
-
 SUBREDDIT CREDIBILITY WEIGHTS:
 HIGH (r/CredibleDefense, r/ukraine): sourced, moderated, analytical
 MED  (r/worldnews, r/geopolitics, r/CombatFootage, r/UkraineWarVideoReport, r/UkraineRussiaReport,
       r/iran, r/MiddleEast, r/europe, r/NATO, r/RussiaUkraineWar2022, r/syriancivilwar, r/China): mixed quality
 LOW  (r/IsraelPalestine, r/worldpolitics, r/GlobalPowers, r/AskMiddleEast): opinion/discussion
-
 CONFIDENCE FOR REDDIT:
 [C3] HIGH subreddit AND post links to a primary source (news article, gov doc, verified footage)
 [C2] MED subreddit OR no primary source link present
 [C1] LOW subreddit OR post is opinion, discussion, or speculation
-
 ============================================================
 HALLUCINATION GUARD — YOUR MOST CRITICAL RULE
 ============================================================
 The valid post numbers are listed at the top of the post list below as VALID POST NUMBERS.
 You may ONLY cite post numbers from that list.
 Citing a post number not in that list is fabrication — a critical failure.
-
 THIS GUARD APPLIES TO EVERY SECTION:
 - TOP DEVELOPMENTS: only describe posts that exist in the VALID list
 - SENTIMENT ANALYSIS: do NOT cite POST numbers at all — topic and subreddit names only
 - REDDIT vs STREAM: only cite POST numbers from the VALID list
-
 PRE-FLIGHT CHECK before writing ANY POST number:
 1. Look at the VALID POST NUMBERS list.
 2. Confirm the number is in that list.
 3. If not, write [NOT ON REDDIT] instead.
-
 ============================================================
 CITATION FORMAT RULE
 ============================================================
@@ -340,62 +414,50 @@ In the REDDIT vs STREAM section, every line must follow this exact format:
 No parenthetical commentary inside or after the POST number.
 No editorial notes. No qualifications.
 Just: the claim, the tag, and the POST number. Nothing else on that line.
-
 CITATION RELEVANCE RULE: Only cite a POST number if that post directly reports the same
 specific fact, figure, or event as the stream claim. If the closest post covers the topic
 but not the specific claim, write [NOT ON REDDIT] instead.
-
 ============================================================
 NO BONUS ITEMS RULE
 ============================================================
 The REDDIT vs STREAM section evaluates ONLY the stream claims provided below.
 Do NOT add extra items. Nothing else belongs in that section.
-
 ============================================================
 CROSS-SECTION CITATION RULE
 ============================================================
 In REDDIT vs STREAM, you may ONLY cite POST numbers already described in TOP DEVELOPMENTS.
-
 ============================================================
 POST NUMBER ACCURACY RULE
 ============================================================
 Every entry in TOP DEVELOPMENTS must begin with "POST X —" using the ORIGINAL post number.
 When writing REDDIT vs STREAM citations, scan your TOP DEVELOPMENTS entries,
 find the "POST X —" label, and copy that number exactly.
-
 Produce a REDDIT OSINT SCAN using HTML only. No Markdown.
-
 <h3>TOP DEVELOPMENTS FROM REDDIT</h3>
 List 15-20 most significant posts. For each entry:
 POST X — <b>Topic title</b> [SOURCE: r/subredditname] [Cx] [Subreddit weight: HIGH/MED/LOW]<br>
 1-2 sentence summary.<br>
 Link: url<br>
 <p></p>
-
 <h3>REDDIT SENTIMENT ANALYSIS</h3>
 What topics are generating the most engagement?
 What is the overall tone — alarmed, analytical, skeptical, partisan?
 Note any narratives that appear coordinated or disproportionately amplified.
 CRITICAL: Do NOT cite POST numbers here. Use topic and subreddit descriptions only.
 <p></p>
-
 <h3>REDDIT vs STREAM COMPARISON</h3>
 IMPORTANT: Evaluate ONLY the stream claims listed below — one tag per claim, nothing more.
 CROSS-SECTION RULE: Only cite POST numbers labeled in TOP DEVELOPMENTS above.
 ACCURACY RULE: Find the matching "POST X —" label in TOP DEVELOPMENTS and copy the number.
-
 For each claim, assign exactly one of:
 [REDDIT CORROBORATES] — Multiple posts support this claim
 [REDDIT MENTIONS]     — At least one post touches this topic
 [REDDIT CONTRADICTS]  — Posts directly contradict this claim
 [NOT ON REDDIT]       — No posts found, OR matching post not in TOP DEVELOPMENTS
-
 Format: Claim text [C-rating]. [TAG] POST X
         (no match: Claim text [C-rating]. [NOT ON REDDIT])
-
 Write until every stream claim is evaluated. Do not truncate.
 <p></p>
-
 RULES:
 1. Every item MUST have [SOURCE: r/subredditname]
 2. HTML only — no Markdown
@@ -409,15 +471,11 @@ RULES:
 10. REDDIT vs STREAM may only cite POST numbers labeled in TOP DEVELOPMENTS
 11. Every TOP DEVELOPMENTS entry begins with "POST X —" using original POST number
 12. Only cite a POST when it directly reports the same specific fact — not just same topic
-
 TODAY'S STREAM CLAIMS (Section 2 — Global Conflict Recap only):
 {STREAM_SUMMARY}
-
 THE POST LIST FOLLOWS. VALID POST NUMBERS ARE LISTED FIRST.
-
 REDDIT POSTS:
 `,
-
   // ============================================================
   // DIGEST PROMPT — 2-Minute Executive Summary
   // ============================================================
@@ -426,30 +484,24 @@ You are given plain-text summaries of three intelligence sources from the same d
   Section 1: YouTube stream analysis (TIER C — max confidence C3)
   Section 2: Wire service news brief (TIER A/B)
   Section 3: Reddit OSINT scan (unverified community intelligence)
-
 Produce a 2-MINUTE EXECUTIVE DIGEST using HTML only. No Markdown.
 This is the SHORT version — write for a reader who will NOT read the full brief today.
 Be direct, specific, and concrete. No filler sentences.
-
 <h3 style="margin:0 0 6px 0;">🌐 SITUATION IN ONE SENTENCE</h3>
 One sentence capturing the dominant geopolitical story of the day.<br><br>
-
 <h3 style="margin:0 0 6px 0;">📌 TOP 5 DEVELOPMENTS</h3>
 The five most significant developments across all three sources. For each:<br>
 <b>Topic</b> — one sentence summary. [SOURCE: Wire/Stream/Reddit] [Cx if from stream or Reddit]<br>
 Order by significance — most important first. No additional commentary after the source tag.<br><br>
-
 <h3 style="margin:0 0 6px 0;">⚠️ CONFIDENCE NOTE</h3>
 One sentence flagging the most important cross-source discrepancy or caveat a reader must hold in mind today.
 Check ALL three source pairs for contradictions: wire vs stream, Reddit vs stream, and Reddit vs wire.
 Flag whichever contradiction is most significant.
 If no direct contradiction exists, flag the most important unverified claim instead.<br><br>
-
 <h3 style="margin:0 0 6px 0;">👁️ WATCH LIST</h3>
 Three specific things to monitor in the next 24-48 hours.
 REQUIRED FORMAT — each item on its own line, separated by <br>. Do NOT run items together.
 Write exactly three items. No numbering. No bullet characters.<br>
-
 RULES:
 1. HTML only. No Markdown.
 2. Do not repeat the same development twice.
@@ -457,41 +509,31 @@ RULES:
 4. Check all three source pairs for contradictions. Flag the most significant.
 5. No additional headers or sections beyond the four specified above.
 6. Do not truncate — write all five developments and all three watch items in full.
-
 SECTION 1 — STREAM ANALYSIS (plain text):
 {STREAM_BRIEF}
-
 SECTION 2 — WIRE NEWS BRIEF (plain text):
 {NEWS_BRIEF}
-
 SECTION 3 — REDDIT OSINT (plain text):
 {REDDIT_BRIEF}
 `,
-
   // ============================================================
   // CLAIM AGING PROMPT — Daily verification of open claims
   // ============================================================
   CLAIM_AGING_PROMPT: `You are an intelligence analyst performing claim verification.
 Below are OPEN CLAIMS from previous daily briefs that were not confirmed by wire services at the time.
 Also below are TODAY'S wire headlines.
-
 For each claim, determine its current status:
 CONFIRMED    — Today's wire independently reports the same development
 CONTRADICTED — Today's wire reporting contradicts this claim
 STILL OPEN   — No wire coverage found today; claim remains unverified
-
 Return ONLY valid JSON — no other text, no markdown, no backticks:
 {"results":[{"claimId":1,"status":"CONFIRMED","note":"brief one-sentence explanation"},{"claimId":2,"status":"STILL OPEN","note":""}]}
-
 OPEN CLAIMS:
 {CLAIMS}
-
 TODAY'S WIRE HEADLINES:
 {HEADLINES}
 `
-
 }; // end CONFIG
-
 // ============================================================
 // SCRIPT PROPERTIES HELPERS
 // ============================================================
@@ -500,7 +542,6 @@ function storeApiKeys() {
   Logger.log("Enter keys manually in: Project Settings → Script Properties");
   Logger.log("Required: CLAUDE_API_KEY, GEMINI_API_KEY, YOUTUBE_API_KEY, SUPADATA_API_KEY");
 }
-
 function testScriptProperties() {
   const keys = ["CLAUDE_API_KEY","GEMINI_API_KEY","YOUTUBE_API_KEY","SUPADATA_API_KEY"];
   keys.forEach(function(k) {
@@ -508,7 +549,6 @@ function testScriptProperties() {
     Logger.log(k + ": " + (v.length > 0 ? "LOADED (" + v.length + " chars)" : "MISSING"));
   });
 }
-
 // ============================================================
 // PIPELINE STATE MANAGEMENT
 // ============================================================
@@ -525,7 +565,6 @@ function _getPipelineCacheSheet() {
   }
   return sheet;
 }
-
 function _savePipelineContent(key, value) {
   var sheet = _getPipelineCacheSheet();
   var data = sheet.getDataRange().getValues();
@@ -534,7 +573,6 @@ function _savePipelineContent(key, value) {
   }
   sheet.appendRow([key, value]);
 }
-
 function _loadPipelineContent(key) {
   var sheet = _getPipelineCacheSheet();
   var data = sheet.getDataRange().getValues();
@@ -543,7 +581,6 @@ function _loadPipelineContent(key) {
   }
   return "";
 }
-
 function _clearPipelineState() {
   try {
     var ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -557,24 +594,20 @@ function _clearPipelineState() {
     props.deleteProperty("PIPELINE_TRIGGER_ID");
   } catch(e) { Logger.log("_clearPipelineState error: " + e.message); }
 }
-
 function _savePipelineMeta(obj) {
   PropertiesService.getScriptProperties().setProperty("PIPELINE_META", JSON.stringify(obj));
 }
-
 function _loadPipelineMeta() {
   var raw = PropertiesService.getScriptProperties().getProperty("PIPELINE_META");
   if (!raw) return null;
   try { return JSON.parse(raw); } catch(e) { return null; }
 }
-
 function _scheduleNextStage() {
   _deleteExistingContinuationTrigger();
   var trigger = ScriptApp.newTrigger("continueOSINTPipeline").timeBased().after(90*1000).create();
   PropertiesService.getScriptProperties().setProperty("PIPELINE_TRIGGER_ID", trigger.getUniqueId());
   Logger.log("Next stage scheduled. Trigger ID: " + trigger.getUniqueId());
 }
-
 function _deleteExistingContinuationTrigger() {
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty("PIPELINE_TRIGGER_ID");
@@ -587,14 +620,13 @@ function _deleteExistingContinuationTrigger() {
   });
   props.deleteProperty("PIPELINE_TRIGGER_ID");
 }
-
 // ============================================================
 // STAGE 1 — Transcript fetch + AI analysis
 // FIX: Large transcripts (>200K chars) defer Claude synthesis
 //      to Stage 2 to avoid the 6-minute execution time limit.
 // ============================================================
 function runOSINTPipeline() {
-  Logger.log("=== OSINT Daily Pipeline v2.17 — Stage 1 Starting ===");
+  Logger.log("=== OSINT Daily Pipeline v2.19 — Stage 1 Starting ===");
   _clearPipelineState();
   PropertiesService.getScriptProperties().deleteProperty("STAGE4_COMPLETE");
   try {
@@ -608,10 +640,8 @@ function runOSINTPipeline() {
       throw new Error("Transcript unavailable. (Got " + (transcript ? transcript.length : 0) + " chars)");
     }
     Logger.log("Transcript: " + transcript.length + " chars");
-
     const MAX_CHARS = 200000;
     let needsSynthesis = false;
-
     if (transcript.length <= MAX_CHARS) {
       // Short transcript: single-pass Claude, fits within 6-min budget
       const intelBrief = analyzeWithAI(transcript, videoMeta);
@@ -624,7 +654,6 @@ function runOSINTPipeline() {
       // Large transcript: Gemini extraction only in Stage 1.
       // Claude synthesis deferred to Stage 2 to avoid 6-min timeout.
       Logger.log("Large transcript (" + transcript.length + " chars). Gemini extraction only in Stage 1...");
-
       // Load cross-day memory here since analyzeWithAI won't be called
       const yesterday = loadYesterdayMemory();
       let crossDayNote = "";
@@ -639,7 +668,6 @@ function runOSINTPipeline() {
       } else {
         Logger.log("No cross-day memory — running without comparison.");
       }
-
       const chunks = chunkText(transcript, MAX_CHARS);
       const partialSummaries = [];
       for (let i = 0; i < chunks.length; i++) {
@@ -681,18 +709,15 @@ function runOSINTPipeline() {
           callGeminiMax(partPrompt));
         Utilities.sleep(1500);
       }
-
       const assembledBullets =
         "[NOTE: The following are pre-extracted bullet points from a " + chunks.length +
         "-segment transcript. Use ONLY these bullets as your source — do not add outside knowledge.]\n\n" +
         partialSummaries.join("\n\n");
-
       _savePipelineContent("extractedBullets", assembledBullets);
       _savePipelineContent("crossDayNote",     crossDayNote);
       Logger.log("Gemini extraction complete (" + assembledBullets.length + " chars). Claude synthesis deferred to Stage 2.");
       needsSynthesis = true;
     }
-
     _savePipelineMeta({
       stage:            2,
       needsSynthesis:   needsSynthesis,
@@ -711,7 +736,6 @@ function runOSINTPipeline() {
       "Stage 1 failed:\n\n" + e.message + "\n\nCheck Apps Script logs.");
   }
 }
-
 // ============================================================
 // STAGE DISPATCHER
 // ============================================================
@@ -722,7 +746,7 @@ function continueOSINTPipeline() {
     Logger.log("continueOSINTPipeline: No pipeline state found.");
     return;
   }
-  Logger.log("=== OSINT Pipeline v2.17 — Stage " + meta.stage + " Starting ===");
+  Logger.log("=== OSINT Pipeline v2.19 — Stage " + meta.stage + " Starting ===");
   try {
     if      (meta.stage === 2) { _runPipelineStage2(meta); }
     else if (meta.stage === 3) { _runPipelineStage3(meta); }
@@ -735,7 +759,6 @@ function continueOSINTPipeline() {
       "Stage " + meta.stage + " failed:\n\n" + e.message + "\n\nCheck Apps Script logs.");
   }
 }
-
 // ============================================================
 // STAGE 2 — (Deferred synthesis if needed) + News wire
 // FIX: If Stage 1 deferred Claude synthesis, run it here first
@@ -755,7 +778,6 @@ function _runPipelineStage2(meta) {
     Logger.log("Stream summary extracted: " + streamSummary.length + " chars");
     _saveExtractedBulletsToLog(bullets, meta);
   }
-
   const streamSummary = _loadPipelineContent("streamSummary");
   const newsHeadlines = fetchNewsWire();
   Logger.log("News headlines fetched: " + newsHeadlines.length);
@@ -767,7 +789,6 @@ function _runPipelineStage2(meta) {
   Logger.log("Stage 2 complete. Scheduling Stage 3 in 90s...");
   _scheduleNextStage();
 }
-
 // ============================================================
 // STAGE 3 — Reddit fetch + Claude analysis
 // ============================================================
@@ -782,7 +803,6 @@ function _runPipelineStage3(meta) {
   Logger.log("Stage 3 complete. Scheduling Stage 4 in 90s...");
   _scheduleNextStage();
 }
-
 // ============================================================
 // STAGE 4 — Digest + scorecard + log + email + memory + claims
 // ============================================================
@@ -799,31 +819,23 @@ function _runPipelineStage4(meta) {
     channelTitle: meta.channelTitle || ""
   };
   const date = new Date().toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
-
   saveToMemory(videoMeta, _loadPipelineContent("streamSummary"), intelBrief);
   Logger.log("Saved to Daily Memory.");
-
   extractAndSaveClaims(newsBrief, intelBrief, videoMeta, date);
   Logger.log("Claims saved to Claim Tracker.");
-
   updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines);
   Logger.log("Reliability scorecard updated.");
-
   logToSheet(videoMeta, intelBrief, meta.transcriptLength, newsBrief, redditBrief);
   Logger.log("Logged to Intel Log sheet.");
-
   const digestHtml = generateShortDigest(intelBrief, newsBrief, redditBrief);
   Logger.log("Executive digest done (Claude): " + digestHtml.length + " chars");
-
   sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtml);
   Logger.log("Email sent to " + CONFIG.EMAIL_RECIPIENTS.length + " recipients.");
-
   PropertiesService.getScriptProperties().setProperty("STAGE4_COMPLETE", "true");
   _clearPipelineState();
   PropertiesService.getScriptProperties().deleteProperty("STAGE4_COMPLETE");
-  Logger.log("=== Daily Pipeline v2.17 Complete ===");
+  Logger.log("=== Daily Pipeline v2.19 Complete ===");
 }
-
 // ============================================================
 // STAGE 4 RECOVERY
 // ============================================================
@@ -851,7 +863,6 @@ function recoverStage4() {
       "Stage 4 recovery failed:\n\n" + e.message);
   }
 }
-
 // ============================================================
 // EXTRACT STREAM SUMMARY (Section 2 only, plain text)
 // ============================================================
@@ -865,7 +876,6 @@ function extractStreamSummary(intelBrief) {
   const lastPeriod = capped.lastIndexOf(".");
   return lastPeriod > 7000 ? capped.substring(0, lastPeriod+1) : capped;
 }
-
 // ============================================================
 // GET LATEST LIVESTREAM
 // ============================================================
@@ -880,7 +890,6 @@ function getLatestLivestreamId(channelId) {
   if (fbData.items && fbData.items.length > 0) return fbData.items[0].id.videoId;
   return null;
 }
-
 // ============================================================
 // GET VIDEO METADATA
 // ============================================================
@@ -896,7 +905,6 @@ function getVideoMetadata(videoId) {
   return { id: videoId, title: "Unknown", channelTitle: "",
            url: "https://youtube.com/watch?v=" + videoId };
 }
-
 // ============================================================
 // GET TRANSCRIPT — Supadata with retry
 // ============================================================
@@ -940,7 +948,6 @@ function getYouTubeTranscript(videoId) {
   Logger.log("Supadata failed after " + MAX_RETRIES + " attempts.");
   return null;
 }
-
 // ============================================================
 // FETCH NEWS WIRE RSS
 // ============================================================
@@ -950,7 +957,7 @@ function fetchNewsWire() {
     try {
       const resp = UrlFetchApp.fetch(feed.url, {
         muteHttpExceptions: true,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.17)" }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.19)" }
       });
       if (resp.getResponseCode() === 200) {
         const items = parseNewsRSS(resp.getContentText(), feed.name, feed.tier);
@@ -967,7 +974,6 @@ function fetchNewsWire() {
   Logger.log("Total wire headlines: " + allHeadlines.length);
   return allHeadlines;
 }
-
 // ============================================================
 // FETCH REDDIT RSS
 // ============================================================
@@ -979,7 +985,7 @@ function fetchRedditRSS() {
         "/top.rss?t=day&limit=" + CONFIG.REDDIT_POSTS_PER_SUB;
       const resp = UrlFetchApp.fetch(url, {
         muteHttpExceptions: true,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.17)" }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.19)" }
       });
       if (resp.getResponseCode() === 200) {
         const parsed = parseRSS(resp.getContentText(), sub.name, sub.weight);
@@ -994,7 +1000,6 @@ function fetchRedditRSS() {
   Logger.log("Total Reddit posts: " + allPosts.length);
   return allPosts;
 }
-
 // ============================================================
 // PARSE NEWS RSS
 // ============================================================
@@ -1022,7 +1027,6 @@ function parseNewsRSS(xml, sourceName, tier) {
   } catch(e) { Logger.log("News RSS parse error: " + e.message); }
   return items;
 }
-
 // ============================================================
 // PARSE REDDIT RSS
 // ============================================================
@@ -1052,7 +1056,6 @@ function parseRSS(xml, subreddit, weight) {
   } catch(e) { Logger.log("Reddit RSS parse error: " + e.message); }
   return posts;
 }
-
 function cleanText(text) {
   return text
     .replace(/<!\[CDATA\[/g,"").replace(/\]\]>/g,"")
@@ -1061,7 +1064,6 @@ function cleanText(text) {
     .replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&nbsp;/g," ")
     .replace(/\s+/g," ").trim();
 }
-
 // ============================================================
 // GENERATE SHORT DIGEST — Claude (with code fence strip)
 // ============================================================
@@ -1082,7 +1084,6 @@ function generateShortDigest(intelBrief, newsBrief, redditBrief) {
     return "<p><i>Executive digest unavailable — see full brief below.</i></p>";
   }
 }
-
 // ============================================================
 // AI ANALYSIS — YouTube transcript (single-pass only)
 // Called from runOSINTPipeline for transcripts <= 200K chars.
@@ -1105,7 +1106,6 @@ function analyzeWithAI(transcript, videoMeta) {
   Logger.log("Transcript within single-pass limit. Sending to Claude...");
   return callClaude(CONFIG.INTEL_PROMPT + crossDayNote + transcript, 8192);
 }
-
 // ============================================================
 // ANALYZE NEWS WIRE — Claude
 // ============================================================
@@ -1124,7 +1124,6 @@ function analyzeNewsWire(headlines, streamSummary) {
     "\n\n" + formatted;
   return callClaude(prompt, 8192);
 }
-
 // ============================================================
 // ANALYZE REDDIT — Claude + Layer 2 hallucination scrub
 // ============================================================
@@ -1158,7 +1157,6 @@ function analyzeReddit(posts, streamSummary) {
     .replace("{STREAM_SUMMARY}", streamSummary || "No stream summary available.") +
     "\n\n" + whitelistHeader + formatted;
   let brief = callClaude(prompt, 8192);
-
   // Layer 2 hallucination scrub
   const topDevMatch = brief.match(/TOP DEVELOPMENTS FROM REDDIT[\s\S]*?(?=<h3|$)/i);
   const describedPosts = new Set();
@@ -1184,9 +1182,8 @@ function analyzeReddit(posts, streamSummary) {
   brief = brief.replace(/^```html\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
   return brief;
 }
-
 // ============================================================
-// SOURCE RELIABILITY SCORECARD — v2.17
+// SOURCE RELIABILITY SCORECARD — v2.19
 // ============================================================
 function updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines) {
   try {
@@ -1201,12 +1198,10 @@ function updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines) {
       sheet.setFrozenRows(1);
       sheet.setColumnWidths(1,12,130);
     }
-
     const c3count = (intelBrief.match(/\[C3\]/g) || []).length;
     const c2count = (intelBrief.match(/\[C2\]/g) || []).length;
     const c1count = (intelBrief.match(/\[C1\]/g) || []).length;
     const flaggedCount = (intelBrief.match(/FLAGGED-VERIFY/g) || []).length;
-
     const scorePrompt =
       "You are an intelligence accuracy analyst.\n" +
       "Compare the TAC-INT brief claims against wire service headlines from the same day.\n" +
@@ -1227,7 +1222,6 @@ function updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines) {
       newsHeadlines.slice(0,30).map(function(h) {
         return "[Tier " + (h.tier||"B") + "] " + h.source + ": " + h.title;
       }).join("\n");
-
     const scoreResponse = callGemini(scorePrompt);
     let total=0, confirmed=0, contradicted=0, notInWire=0, notes="";
     let iranC=0, iranT=0, ukC=0, ukT=0, isC=0, isT=0, otC=0, otT=0;
@@ -1247,24 +1241,19 @@ function updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines) {
       Logger.log("Score parse error: " + e.message);
       notes = "Score parsing failed";
     }
-
     const confirmRate = total > 0 ? Math.round((confirmed/total)*100) : 0;
     const date = new Date().toLocaleDateString("en-US", {year:"numeric",month:"long",day:"numeric"});
-
     sheet.appendRow([date, videoMeta.title, total, confirmed, contradicted,
       notInWire, flaggedCount, confirmRate + "%", c3count, c2count, c1count, notes]);
     sheet.autoResizeColumns(1,12);
-
     applyDashboardColors(sheet);
     updateTopicBreakdown(ss, date, videoMeta.title,
       iranC, iranT, ukC, ukT, isC, isT, otC, otT);
     updateConfidenceTrendChart(ss, sheet);
-
     Logger.log("Scorecard: " + confirmed + "/" + total + " confirmed (" + confirmRate + "%) | " +
       c3count + " C3 | " + c2count + " C2 | " + c1count + " C1 | " + flaggedCount + " flagged");
   } catch(e) { Logger.log("Scorecard error: " + e.message); }
 }
-
 // ============================================================
 // APPLY RAG COLORS TO SCORECARD ROWS
 // ============================================================
@@ -1284,7 +1273,6 @@ function applyDashboardColors(sheet) {
     Logger.log("Dashboard colors applied.");
   } catch(e) { Logger.log("applyDashboardColors error: " + e.message); }
 }
-
 // ============================================================
 // UPDATE TOPIC BREAKDOWN SHEET
 // ============================================================
@@ -1315,7 +1303,6 @@ function updateTopicBreakdown(ss, date, title, iranC, iranT, ukC, ukT, isC, isT,
     Logger.log("Topic breakdown updated.");
   } catch(e) { Logger.log("updateTopicBreakdown error: " + e.message); }
 }
-
 // ============================================================
 // CONFIDENCE TREND CHART
 // ============================================================
@@ -1352,7 +1339,6 @@ function updateConfidenceTrendChart(ss, scorecardSheet) {
     Logger.log("Confidence trend chart updated.");
   } catch(e) { Logger.log("updateConfidenceTrendChart error: " + e.message); }
 }
-
 // ============================================================
 // CROSS-DAY MEMORY — Save and Load
 // ============================================================
@@ -1374,7 +1360,6 @@ function saveToMemory(videoMeta, streamSummary, intelBrief) {
     Logger.log("Memory saved for: " + date);
   } catch(e) { Logger.log("saveToMemory error: " + e.message); }
 }
-
 function loadYesterdayMemory() {
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
@@ -1394,7 +1379,6 @@ function loadYesterdayMemory() {
     return null;
   }
 }
-
 // ============================================================
 // CLAIM TRACKER — Extract and save unverified/flagged claims
 // ============================================================
@@ -1405,12 +1389,10 @@ function categorizeClaim(text) {
   if (t.match(/israel|gaza|lebanon|hamas|beirut|netanyahu|hezbollah|west bank/)) return "Israel/Lebanon";
   return "Other";
 }
-
 function extractClaimsForTracker(newsBrief, intelBrief) {
   const claims = [];
   const plainNews  = newsBrief.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
   const plainIntel = intelBrief.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-
   const notInWireRegex = /([^.!?]{20,400})\s*\[NOT IN WIRE\]/g;
   let m;
   while ((m = notInWireRegex.exec(plainNews)) !== null) {
@@ -1419,7 +1401,6 @@ function extractClaimsForTracker(newsBrief, intelBrief) {
       claims.push({ text: claim.substring(0,400), type: "NOT IN WIRE", priority: "NORMAL" });
     }
   }
-
   const discrepancyRegex = /([^.!?]{20,400})\s*\[DISCREPANCY\]/g;
   while ((m = discrepancyRegex.exec(plainNews)) !== null) {
     const claim = m[1].replace(/\[C[0-9]\]/g,"").trim();
@@ -1427,7 +1408,6 @@ function extractClaimsForTracker(newsBrief, intelBrief) {
       claims.push({ text: claim.substring(0,400), type: "DISCREPANCY", priority: "HIGH" });
     }
   }
-
   const flaggedRegex = /([^.!?]{20,400})\s*\[FLAGGED-VERIFY\]/g;
   while ((m = flaggedRegex.exec(plainIntel)) !== null) {
     const claim = m[1].replace(/\[C[0-9]\]/g,"").trim();
@@ -1435,10 +1415,8 @@ function extractClaimsForTracker(newsBrief, intelBrief) {
       claims.push({ text: claim.substring(0,400), type: "FLAGGED-VERIFY", priority: "HIGH" });
     }
   }
-
   return claims.slice(0, 30);
 }
-
 function extractAndSaveClaims(newsBrief, intelBrief, videoMeta, date) {
   try {
     const claims = extractClaimsForTracker(newsBrief, intelBrief);
@@ -1468,12 +1446,11 @@ function extractAndSaveClaims(newsBrief, intelBrief, videoMeta, date) {
     Logger.log("Claim Tracker: " + claims.length + " claims saved.");
   } catch(e) { Logger.log("extractAndSaveClaims error: " + e.message); }
 }
-
 // ============================================================
 // CLAIM AGING — Runs daily at CLAIM_AGING_HOUR
 // ============================================================
 function runClaimAging() {
-  Logger.log("=== Claim Aging v2.17 Starting ===");
+  Logger.log("=== Claim Aging v2.19 Starting ===");
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName("Claim Tracker");
@@ -1547,7 +1524,6 @@ function runClaimAging() {
     Logger.log("runClaimAging ERROR: " + e.message);
   }
 }
-
 // ============================================================
 // CHUNK TEXT
 // ============================================================
@@ -1565,7 +1541,6 @@ function chunkText(text, maxChars) {
   }
   return chunks;
 }
-
 // ============================================================
 // CLAUDE API — claude-sonnet-4-6
 // ============================================================
@@ -1595,7 +1570,6 @@ function callClaude(prompt, maxTokens) {
   if (data.content && data.content[0]) return data.content[0].text;
   throw new Error("Claude API unexpected response: " + JSON.stringify(data).substring(0,300));
 }
-
 // ============================================================
 // OPUS API — claude-opus-4-6 (strategic/weekly use only)
 // DO NOT call from Stage 1, 2, 3, or 4 daily pipeline.
@@ -1626,14 +1600,12 @@ function callOpus(prompt, maxTokens) {
   if (data.content && data.content[0]) return data.content[0].text;
   throw new Error("Opus API unexpected response: " + JSON.stringify(data).substring(0,300));
 }
-
 // ============================================================
 // GEMINI API CALLS
 // ============================================================
 function callGemini(prompt)      { return callGeminiWithTokens(prompt, 8192);  }
 function callGeminiLarge(prompt) { return callGeminiWithTokens(prompt, 16384); }
 function callGeminiMax(prompt)   { return callGeminiWithTokens(prompt, 32768); }
-
 function callGeminiWithTokens(prompt, maxTokens) {
   const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
     CONFIG.GEMINI_API_KEY;
@@ -1650,7 +1622,6 @@ function callGeminiWithTokens(prompt, maxTokens) {
   if (data.candidates && data.candidates[0]) return data.candidates[0].content.parts[0].text;
   throw new Error("Gemini error: " + JSON.stringify(data));
 }
-
 // ============================================================
 // LOG TO SHEETS
 // ============================================================
@@ -1674,7 +1645,6 @@ function logToSheet(videoMeta, intelBrief, transcriptLength, newsBrief, redditBr
   ]);
   sheet.autoResizeColumns(1,5);
 }
-
 // ============================================================
 // EXTRACT DISCREPANCIES for email banner
 // ============================================================
@@ -1689,14 +1659,12 @@ function extractDiscrepancies(newsBrief) {
   }
   return discrepancies.slice(0, 3);
 }
-
 // ============================================================
-// SEND EMAIL — v2.17
+// SEND EMAIL — v2.19
 // ============================================================
 function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtml) {
   const date = new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   const subject = CONFIG.EMAIL_SUBJECT.replace("{DATE}", date);
-
   const discrepancies = extractDiscrepancies(newsBrief);
   let discrepancyBanner = "";
   if (discrepancies.length > 0) {
@@ -1709,7 +1677,6 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
       '<strong style="color:#c0392b;font-size:14px;">⚠️ WIRE DIRECTLY CONTRADICTS STREAM — VERIFY BEFORE ACTING</strong>' +
       items + '</div>';
   }
-
   const tocBlock =
     '<div style="background:#f4f4f4;padding:10px 20px;border:1px solid #ccc;border-radius:6px;' +
     'margin-bottom:16px;font-size:13px;">' +
@@ -1719,7 +1686,6 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     '<a href="#section2" style="margin-left:12px;color:#1a5276;text-decoration:none;">📰 Wire</a>' +
     '<a href="#section3" style="margin-left:12px;color:#1a5276;text-decoration:none;">🔍 Reddit</a>' +
     '</div>';
-
   const mobileCSS =
     '<style>' +
     '@media only screen and (max-width:600px){' +
@@ -1730,7 +1696,6 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     'h2{font-size:15px!important;}' +
     '}' +
     '</style>';
-
   const digestBlock =
     '<a name="digest"></a>' +
     '<div class="section-header" style="background:#12002a;color:white;padding:20px 28px;border-radius:8px 8px 0 0;">' +
@@ -1742,7 +1707,6 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     (digestHtml || "<p><i>Executive digest unavailable — see full brief below.</i></p>") +
     '</div>' +
     '<div style="text-align:center;margin:28px 0 20px;color:#888;font-size:12px;letter-spacing:2px;">▼ &nbsp; FULL BRIEF BELOW — THREE SECTIONS &nbsp; ▼</div>';
-
   const htmlBody =
     mobileCSS +
     '<div class="email-wrapper" style="font-family:Arial,sans-serif;max-width:820px;margin:0 auto;color:#1a1a1a;">' +
@@ -1784,11 +1748,10 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     redditBrief +
     '</div>' +
     '<p style="color:#aaa;font-size:11px;margin-top:20px;text-align:center;">' +
-    'Automated OSINT Pipeline v2.17 · Hybrid AI: Claude Sonnet 4.6 + Gemini 2.5 Flash · Open Source Intelligence Only<br>' +
+    'Automated OSINT Pipeline v2.19 · Hybrid AI: Claude Sonnet 4.6 + Gemini 2.5 Flash · Open Source Intelligence Only<br>' +
     'Digest: All Sources · Section 1: The Enforcer (YouTube — TIER C) · Section 2: Wire Services (TIER A/B) · Section 3: Reddit Community' +
     '</p>' +
     '</div>';
-
   const plainText =
     "=== EXECUTIVE DIGEST (2-MIN READ) ===\n" +
     (digestHtml||"").replace(/<[^>]+>/g,"").replace(/\s+/g," ") +
@@ -1801,17 +1764,15 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     newsBrief.replace(/<[^>]+>/g,"").replace(/\s+/g," ") +
     "\n\n=== SECTION 3: REDDIT OSINT (UNVERIFIED) ===\n" +
     redditBrief.replace(/<[^>]+>/g,"").replace(/\s+/g," ");
-
   CONFIG.EMAIL_RECIPIENTS.forEach(function(email) {
     MailApp.sendEmail({to:email, subject:subject, body:plainText, htmlBody:htmlBody});
   });
 }
-
 // ============================================================
 // WEEKLY ROLLUP
 // ============================================================
 function runWeeklyRollup() {
-  Logger.log("=== Weekly Rollup v2.17 Starting ===");
+  Logger.log("=== Weekly Rollup v2.19 Starting ===");
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
@@ -1834,13 +1795,12 @@ function runWeeklyRollup() {
     Logger.log("Weekly brief (Claude): " + weeklyBrief.length + " chars");
     logWeeklyToSheet(weeklyBrief, rows.length);
     sendWeeklyEmail(weeklyBrief, rows.length, reliabilityStats);
-    Logger.log("=== Weekly Rollup v2.17 Complete ===");
+    Logger.log("=== Weekly Rollup v2.19 Complete ===");
   } catch(e) {
     Logger.log("WEEKLY ERROR: " + e.message);
     MailApp.sendEmail(CONFIG.EMAIL_RECIPIENTS[0], "Weekly Rollup Error", e.message);
   }
 }
-
 function getWeeklyReliabilityStats(ss) {
   try {
     const sheet = ss.getSheetByName("Reliability Scorecard");
@@ -1868,7 +1828,6 @@ function getWeeklyReliabilityStats(ss) {
              notInWire:totalNotInWire, flagged:totalFlagged, avgRate, dailyRates, trend };
   } catch(e) { return null; }
 }
-
 function callWeeklyAI(dayObjects, reliabilityStats) {
   const briefsSummary = dayObjects.map(function(d) {
     return "=== DAY " + d.dayNum + " — " + d.date + " ===\n" +
@@ -1911,7 +1870,6 @@ function callWeeklyAI(dayObjects, reliabilityStats) {
     "DAILY BRIEFS:\n" + briefsSummary;
   return callOpus(prompt, 12000);
 }
-
 function logWeeklyToSheet(weeklyBrief, dayCount) {
   const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   let sheet = ss.getSheetByName("Weekly Rollups");
@@ -1929,7 +1887,6 @@ function logWeeklyToSheet(weeklyBrief, dayCount) {
   ]);
   sheet.autoResizeColumns(1,2);
 }
-
 function sendWeeklyEmail(weeklyBrief, dayCount, reliabilityStats) {
   const date = new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
   const subject = "WEEKLY STRATEGIC ASSESSMENT — " + date;
@@ -1967,7 +1924,6 @@ function sendWeeklyEmail(weeklyBrief, dayCount, reliabilityStats) {
     MailApp.sendEmail({to:email, subject:subject, body:plainText, htmlBody:htmlBody});
   });
 }
-
 // ============================================================
 // SETUP TRIGGERS
 // ============================================================
@@ -1978,7 +1934,6 @@ function setupTrigger() {
   ScriptApp.newTrigger("runOSINTPipeline").timeBased().atHour(CONFIG.TRIGGER_HOUR).everyDays(1).create();
   Logger.log("Daily trigger set for " + CONFIG.TRIGGER_HOUR + ":00 AM");
 }
-
 function setupWeeklyTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === "runWeeklyRollup") ScriptApp.deleteTrigger(t);
@@ -1986,7 +1941,6 @@ function setupWeeklyTrigger() {
   ScriptApp.newTrigger("runWeeklyRollup").timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(CONFIG.WEEKLY_HOUR).create();
   Logger.log("Weekly trigger set: Sunday at " + CONFIG.WEEKLY_HOUR + ":00 AM");
 }
-
 function setupContinuationTrigger() {
   const existing = ScriptApp.getProjectTriggers().filter(function(t) {
     return t.getHandlerFunction() === "continueOSINTPipeline";
@@ -1998,7 +1952,6 @@ function setupContinuationTrigger() {
   ScriptApp.newTrigger("continueOSINTPipeline").timeBased().after(365*24*60*60*1000).create();
   Logger.log("continueOSINTPipeline registered as a project trigger.");
 }
-
 function setupClaimAgingTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t) {
     if (t.getHandlerFunction() === "runClaimAging") ScriptApp.deleteTrigger(t);
@@ -2006,15 +1959,13 @@ function setupClaimAgingTrigger() {
   ScriptApp.newTrigger("runClaimAging").timeBased().atHour(CONFIG.CLAIM_AGING_HOUR).everyDays(1).create();
   Logger.log("Claim aging trigger set for " + CONFIG.CLAIM_AGING_HOUR + ":00 AM daily.");
 }
-
 // ============================================================
 // TEST FUNCTIONS
 // ============================================================
 function testRun() {
-  Logger.log("=== TEST: Full Daily Pipeline v2.17 (Staged) ===");
+  Logger.log("=== TEST: Full Daily Pipeline v2.19 (Staged) ===");
   runOSINTPipeline();
 }
-
 function testRunStageStatus() {
   const meta = _loadPipelineMeta();
   Logger.log("Pipeline Meta: " + JSON.stringify(meta));
@@ -2030,7 +1981,6 @@ function testRunStageStatus() {
   Logger.log("Pending trigger ID: " + (triggerId||"none"));
   Logger.log("STAGE4_COMPLETE flag: " + (stage4||"not set"));
 }
-
 function testNewsWireOnly() {
   Logger.log("=== TEST: News Wire RSS ===");
   const headlines = fetchNewsWire();
@@ -2040,7 +1990,6 @@ function testNewsWireOnly() {
     "News Wire Test — " + new Date().toLocaleDateString(), brief.replace(/<[^>]+>/g,""), {htmlBody:brief});
   Logger.log("Test email sent.");
 }
-
 function testRedditOnly() {
   Logger.log("=== TEST: Reddit RSS ===");
   const posts = fetchRedditRSS();
@@ -2050,17 +1999,14 @@ function testRedditOnly() {
     "Reddit OSINT Test — " + new Date().toLocaleDateString(), brief.replace(/<[^>]+>/g,""), {htmlBody:brief});
   Logger.log("Test email sent.");
 }
-
 function testClaimAgingOnly() {
   Logger.log("=== TEST: Claim Aging ===");
   runClaimAging();
 }
-
 function testWeeklyRollup() {
   Logger.log("=== TEST: Weekly Rollup ===");
   runWeeklyRollup();
 }
-
 // ============================================================
 // SAVE EXTRACTED BULLETS TO AUDIT LOG (for prompt calibration)
 // ============================================================
