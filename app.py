@@ -14,6 +14,10 @@ load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-secret-change-me")
 DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "changeme")
+@app.route('/OneSignalSDKWorker.js')
+def onesignal_worker():
+    return send_from_directory('static', 'OneSignalSDKWorker.js',
+                               mimetype='application/javascript')
 
 SYSTEM_PROMPT = """You are an OSINT analyst assistant embedded in an intelligence dashboard.
 You have access to daily intelligence briefs compiled from stream analysis of The Enforcer,
