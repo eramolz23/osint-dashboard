@@ -13,6 +13,29 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="OSINT" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
+  <!-- OneSignal Web Push -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "69967aa0-ea0f-44fb-9de6-9754b62b7bb2",
+          notifyButton: { enable: false }
+        });
+      });
+
+      async function enableOSINTAlerts() {
+        OneSignalDeferred.push(async function(OneSignal) {
+          await OneSignal.Notifications.requestPermission();
+          const subscribed = await OneSignal.User.PushSubscription.optedIn;
+          const btn = document.getElementById("alert-btn");
+          if (btn) {
+            btn.textContent = subscribed ? "✅ Alerts Active" : "🔔 Enable Alerts";
+            btn.style.background = subscribed ? "#22c55e" : "#ef4444";
+          }
+        });
+      }
+    </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
