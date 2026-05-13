@@ -92,7 +92,7 @@ def index():
     for b in briefs:
         b["_rate"] = rate_by_date.get(b.get("Date", "").strip())
 
-    briefs = sorted(briefs, key=lambda x: x.get("Date", ""), reverse=True)
+    briefs = sorted(briefs, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
     return render_template("index.html", briefs=briefs)
 
 
