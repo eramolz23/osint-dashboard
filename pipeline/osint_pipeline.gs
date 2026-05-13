@@ -1,7 +1,28 @@
-// YOUTUBE OSINT INTEL PIPELINE — v2.19 (RED TEAM + DISINFO INTEGRATION)
+// YOUTUBE OSINT INTEL PIPELINE — v2.22 (SYNTHESIS + EXTRACTION AUDIT FIXES)
 // Daily TAC-INT + News Wire + Reddit RSS + Weekly Rollup
 // + Cross-Day Memory + Claim Tracker + Claim Aging
 // + Dashboard Colors + Confidence Charts + Email Improvements
+//
+// CHANGELOG v2.22 (May 13, 2026):
+//   PHASE 13 — SYNTHESIS AUDIT FIXES (4 INTEL_PROMPT changes):
+//   - ESCALATION GUARD added: host confidence cannot elevate claim above [C3]
+//   - HARD NOISE SUPPRESSION added: historical analogies, literary refs,
+//     legal statutes, stream gimmicks explicitly blocked from synthesis output
+//   - EVIDENCE PRIORITY RULE added: physical/visual evidence cannot be dropped
+//     in favor of host verbal estimate on same topic
+//   - NAMED ACTOR RULE added: specific named individuals must appear verbatim,
+//     never collapsed into generic group labels
+//
+//   PHASE 14 — EXTRACTION AUDIT FIXES (4 partPrompt changes):
+//   - STEP 1: 93rd Mechanized Brigade phonetic correction added;
+//     unit number preservation rule added
+//   - STEP 2: Named officials and targets made REQUIRED (mandatory extraction);
+//     information control actions made REQUIRED; cyber "ruled out" findings
+//     made extractable as operational constraints
+//   - STEP 3: Full rewrite — historical tangent semantic filter with explicit
+//     examples; domestic US events exclusion tightened; stream gimmick
+//     (Morse code decoders, donation games) exclusion added; host emotional
+//     state exclusion formalized
 //
 // CHANGELOG v2.19 (May 11, 2026):
 //   PHASE 9 — RED TEAM AUDIT FIXES (8 INTEL_PROMPT changes):
@@ -29,55 +50,18 @@
 //   Military Summary and History Legends):
 //   - Added pro-Russian narrative laundering signature patterns to
 //     INTEL_PROMPT FLAGGED-VERIFY triggers
-//   - Casualty inflation anchors (e.g. 40k/100k/150k figures, "sloppy
-//     fantasy" rhetoric)
-//   - Premature/"verbal capture" declarations preceding OSINT
-//     verification by <48 hours
-//   - "Well actually" historical revisionist rhetorical framework
-//   - Legal deflection language re. civilian infrastructure
-//   - Hardware disparagement bias and emotive capitalized verbs
-//     (BULLY, ABANDONING, DEBACLE)
-//   - When Enforcer references these channels to debunk them, the
-//     underlying disputed claim now gets extra FLAGGED-VERIFY scrutiny
 //
 //   PHASE 11 — ISW HANDLING (from Deep Research on Institute for
 //   the Study of War):
 //   - NEWS_PROMPT updated with explicit ISW source profile
-//   - ISW geospatial/unit/FIRMS data weighted heavily (high fidelity)
-//   - ISW strategic forecasts weighted lower (neoconservative policy
-//     advocacy bias, defense-contractor funding structural conflict)
-//   - "War optimism" patterns flagged (asymmetric source verification
-//     favoring Ukrainian claims, weapon-procurement-justification
-//     framing, tactical burial of negative developments)
-//   - ISW capture/control claims cross-validated against DeepStateUA
-//     and visual confirmation cadence before treating as ground truth
 //
 // CHANGELOG v2.17 TIMEOUT FIX:
 //   - PROBLEM: Large transcripts (>200K chars) caused Stage 1 to
 //     exceed Google Apps Script's 6-minute execution limit.
-//     Gemini chunk extraction alone took ~4.5 min, leaving no
-//     time for the Claude synthesis call.
 //   - FIX: When transcript > 200K chars, Stage 1 now runs Gemini
 //     extraction only and saves assembled bullets to Pipeline Cache.
 //     Claude synthesis is deferred to the start of Stage 2.
-//   - Short transcripts (<= 200K chars) are unaffected — they
-//     still run single-pass Claude in Stage 1 as before.
 //
-// CHANGELOG v2.17 vs v2.16:
-//   - CROSS-DAY MEMORY: Stage 1 loads yesterday's stream summary
-//     and instructs Claude to tag claims with [CONFIRMS YESTERDAY],
-//     [CONTRADICTS YESTERDAY], or [UPDATES YESTERDAY].
-//   - CLAIM TRACKER: Stage 4 extracts NOT IN WIRE, FLAGGED-VERIFY,
-//     and DISCREPANCY claims into "Claim Tracker" sheet (status OPEN).
-//   - CLAIM AGING: runClaimAging() fires at CLAIM_AGING_HOUR (9 AM).
-//   - DASHBOARD COLORS: Scorecard rows green/amber/red by confirm rate.
-//   - CONFIDENCE TREND CHART: Line chart in Sheets updated each run.
-//   - TOPIC BREAKDOWN: New sheet tracks confirmation by theater.
-//   - EMAIL TOC: Clickable table of contents with anchor links.
-//   - DISCREPANCY BANNER: Red alert box if wire contradicts stream.
-//   - MOBILE EMAIL: Responsive CSS for phone rendering.
-//   - DIGEST CODE FENCE FIX: Strip markdown fences from Claude output.
-//   - MODEL: claude-sonnet-4-6
 // ============================================================
 const PROPS = PropertiesService.getScriptProperties();
 const CONFIG = {
@@ -162,6 +146,13 @@ STEP 2 — CRITICAL CONSTRAINTS:
 - Do NOT fabricate weapon systems, unit names, locations, or predictions not stated by hosts.
 - Do NOT infer or assume anything the hosts did not explicitly say.
 - If a section has nothing to report, write: Not addressed in this stream.
+SYNTHESIS NOISE SUPPRESSION — the following must be suppressed entirely from ALL sections of the brief:
+- Historical analogies and battle comparisons used as rhetorical framing (e.g., Little Bighorn, WWI parallels, Civil War comparisons). If the host uses a historical example to make a specific named prediction about a current actor, extract the prediction ONLY — discard the historical framing entirely.
+- Literary or pop culture references (1984, TMZ, etc.) with no direct intelligence value.
+- Legal statute citations (US Code sections, treason law text) UNLESS a named actor is explicitly facing prosecution with an operational consequence stated.
+- Stream entertainment mechanics: Morse code decoders, donation sound effect readings, viewer game outputs. These are channel gimmicks — never extract as intelligence.
+- Host emotional states framed as intelligence: "host fears," "host feels," "host has a negative opinion of." Extract the underlying claim if one exists — discard the emotional wrapper.
+- If it would not appear in an ISW daily update, suppress it.
 STEP 3 — SOURCE CREDIBILITY CEILING:
 This transcript is from a YouTube commentary channel (TIER C source).
 MAXIMUM confidence for any claim from this source is [C3].
@@ -179,6 +170,11 @@ CONFIDENCE SCALE — tag EVERY factual claim inline:
      it is [C1], not [C3]. Example: host states "the US has 2.5 months of oil
      reserves remaining" with no cited primary source = [C1]. [C3] requires a
      reported observable event. All host reasoning is [C1].
+     ESCALATION GUARD: A host's confident delivery, repeated assertion, or
+     dramatic framing of an unverified claim does NOT elevate it above [C3].
+     Unconfirmed reports (vessel losses, casualty figures, equipment kills)
+     remain [C3] regardless of how certain the host sounds. Only Oryx
+     visual confirmation or a corroborating Tier A/B source justifies [C2].
 [FLAGGED-VERIFY] — Add alongside confidence tag for claims that are physically implausible,
                    internally inconsistent, or extraordinary. Example: [C3][FLAGGED-VERIFY]
                    REQUIRED triggers for FLAGGED-VERIFY:
@@ -256,6 +252,15 @@ not tied to a specific theater.
 GROUPING RULE: Each theater or topic gets its own bold header. Never place
 unrelated developments under the same header (e.g. Cuba activity does not
 belong under a China header).
+EVIDENCE PRIORITY RULE: Physical or visual evidence (debris recovery, drone footage,
+Oryx-confirmed wreckage) is higher-value than a host verbal estimate on the same topic.
+If both exist in the source, the physical evidence is REQUIRED in the brief. The host
+estimate is optional context. Never drop the physical evidence while keeping only the
+verbal claim.
+NAMED ACTOR RULE: If the source contains a specific list of named individuals (officials,
+executives, military commanders), those names must appear in the brief. Never collapse a
+named list into a generic label (e.g., do not write "top business leaders" when the
+source names specific individuals). Names are intelligence. Generalizations are not.
 Use <b></b> for topic titles. Tag each bullet with confidence score.
 Apply cross-day tags [CONFIRMS YESTERDAY] etc. where directly applicable.
 Only include topics explicitly discussed. Write until complete — do not truncate.
@@ -532,7 +537,32 @@ OPEN CLAIMS:
 {CLAIMS}
 TODAY'S WIRE HEADLINES:
 {HEADLINES}
-`
+{HEADLINES}
+`,
+  // ============================================================
+  // URGENCY ASSESSMENT PROMPT — Stage 4 alerting
+  // ============================================================
+  URGENCY_PROMPT: `You are an intelligence triage officer. Assess whether today's brief contains genuinely major, historically significant news warranting an immediate push notification to phones.
+
+URGENCY SCALE:
+1 — Routine daily update. Standard developments in ongoing conflicts.
+2 — Notable but expected. Significant within context, not structurally new.
+3 — Meaningful escalation or reversal. Story shifted but fits known patterns.
+4 — Major structural shift. New actor enters conflict, new theater opened, unprecedented weapon use, capital city struck, ceasefire announced or collapsed, senior military/political leader confirmed killed.
+5 — Historic rupture. Nuclear weapon use or credible imminent launch, NATO Article 5 invoked, head of state killed, major Western city struck, direct US/NATO kinetic engagement with Russia or Iran.
+
+CRITICAL RULE: Default to 1 or 2. Routine strikes, standard frontline movement, typical diplomatic statements, weapons deliveries, and ongoing bombardment campaigns are ALWAYS 1 or 2 no matter how large the numbers. Only assign 4+ when something categorically new has happened — an event type that has not occurred before in this conflict cycle.
+
+PIPELINE STRESS MODIFIERS — these can raise your score by +1 if the underlying event is already a 3+:
+- Wire DISCREPANCY count today: {DISCREPANCY_COUNT}
+- FLAGGED-VERIFY claim count today: {FLAGGED_COUNT}
+- CONTRADICTS YESTERDAY count: {CONTRADICTS_COUNT}
+
+Return ONLY valid JSON — no other text, no markdown, no backticks:
+{"level":1,"reason":"one sentence plain English explanation of why this score","headline":"10 words max — the notification title if sent"}
+
+TODAY'S EXECUTIVE DIGEST:
+{DIGEST}`
 }; // end CONFIG
 // ============================================================
 // SCRIPT PROPERTIES HELPERS
@@ -626,7 +656,7 @@ function _deleteExistingContinuationTrigger() {
 //      to Stage 2 to avoid the 6-minute execution time limit.
 // ============================================================
 function runOSINTPipeline() {
-  Logger.log("=== OSINT Daily Pipeline v2.19 — Stage 1 Starting ===");
+  Logger.log("=== OSINT Daily Pipeline v2.22 — Stage 1 Starting ===");
   _clearPipelineState();
   PropertiesService.getScriptProperties().deleteProperty("STAGE4_COMPLETE");
   try {
@@ -676,31 +706,56 @@ function runOSINTPipeline() {
   "This is PART " + (i+1) + " of " + chunks.length + " of a long livestream transcript.\n" +
   "STEP 1: Silently correct transcription errors in proper nouns and military terminology before extracting.\n" +
   "Common phonetic garble patterns to fix: 'cob cages' → 'cope cages', 'Hezbola' → 'Hezbollah', " +
-  "'Tran' → 'Iran', 'USNS Pillow' → correct vessel name using context. " +
+  "'Tran' → 'Iran', 'USNS Pillow' → correct vessel name using context, " +
+  "'winter mechanized brigade' or similar descriptive garble → 93rd Mechanized Brigade, " +
+  "'41st mechanized' → 41st Separate Mechanized Brigade. " +
+  "Any Ukrainian unit number followed by 'mechanized,' 'assault,' or 'separate' — preserve the exact number; never replace it with a descriptive label. " +
   "When a term is garbled beyond recovery, append [PHONETIC?] after your best correction.\n" +
+
   "STEP 2: Extract ONLY the following — no filler, no commentary:\n" +
 "  • Kinetic events (strikes, attacks, explosions, casualties) — include specific unit names, brigade designations, and force sizes when stated\n" +
 "  • Naval operations — include mine-laying, swarm tactics, blockade actions, and vessel seizures with exact numbers when given\n" +
 "  • Force movements (deployments, withdrawals, buildups) — include troop/equipment counts and named locations\n" +
 "  • Weapon systems named explicitly — list each system as its own bullet\n" +
-"  • Operational mechanics and physical constraints — how or why an operation succeeded or failed (terrain, draft limits, ROE, logistical chokepoints, altitude ceilings) — include specific technical details when stated\n" +
-"  • Specific target lists — when hosts name individual locations, hubs, ports, or nodes, list EACH as its own bullet; never collapse into 'various locations' or 'multiple targets'\n" +
+"  • Operational mechanics and physical constraints — how or why an operation succeeded or failed (terrain, draft limits, ROE, logistical chokepoints, altitude ceilings) — include specific technical details when stated; ALSO extract any vector or attack method the host explicitly rules out, as 'ruled out' findings are operational constraints\n" +
+"  • Specific target lists — when hosts name individual locations, hubs, ports, refineries, or nodes, list EACH as its own bullet; never collapse into 'various locations' or 'multiple targets'\n" +
 "  • Cyber operations, electronic warfare, information control, or internet shutdowns\n" +
 "  • Named sources or outlets cited by the hosts\n" +
 "  • Host predictions or forecasts — label each [HOST FORECAST]\n" +
-"  • Diplomatic claims — include specific named officials, specific dates, specific terms (prisoner counts, ceasefire windows, deadlines)\n" +
+"  • Diplomatic claims — REQUIRED: include the full name and title of every named official; never write 'UAE official' or 'Iranian spokesperson' when a specific name was given; named officials are intelligence\n" +
+"  • Information control actions — REQUIRED: if a named head of state or senior official characterizes a category of speech as treasonous, illegal, or suppressed, extract verbatim with the speaker named\n" +
+"  • Named target locations — REQUIRED: every named geographic target (island, refinery, port, facility) is its own bullet; never generalize a specific name into a region name\n" +
 "  • Legal or government decrees cited by name or number\n" +
 "  • Medical or biological threat specifics — include fatality rates, incubation periods, transmission details when stated\n" +
 "  • Media and information environment — accreditation stripping, broadcast delays, state censorship actions\n" +
 "  • Military response actions by allied or third-party nations (Latvia, UAE, Saudi Arabia, etc.)\n" +
 "  • Audience polls on geopolitical topics — include the question and result percentages when stated; NOTE: these are NOT excluded as channel metrics\n" +
-"STEP 3 — EXCLUSIONS. Do NOT extract any of the following:\n" +
+"STEP 3 — HARD EXCLUSIONS. Do NOT extract any of the following:\n\n" +
+"HISTORICAL TANGENTS:\n" +
+"Before extracting anything historical, ask: is this event happening NOW? If yes, extract it. " +
+"If the host is using it as a comparison, analogy, or lesson, exclude it entirely.\n" +
+"Hard exclude: Battle of Little Bighorn, Custer, Springfield trapdoor rifles, lever-action rifles (1800s context), " +
+"Standard Oil, Carnegie, Vanderbilt, trustbusting, Gilded Age, Civil War references, WWI/WWII analogies used as comparisons.\n" +
+"Exception: if a historical example leads to a specific prediction about a NAMED current actor, " +
+"extract the prediction only — drop the historical framing entirely.\n\n" +
+"DOMESTIC US EVENTS UNRELATED TO CONFLICT:\n" +
+"Exclude any US domestic crime, accident, infrastructure failure, or court case with no direct " +
+"link to the monitored conflicts. Examples: bridge collapses, DOJ charges against non-conflict actors, " +
+"domestic economic debates unless explicitly tied to a named military aid package.\n\n" +
+"STREAM GIMMICKS:\n" +
+"The channel uses Morse code decoders, donation sound effects, and viewer message games. Exclude:\n" +
+"  • Any Morse code message or decoded output from stream gimmicks\n" +
+"  • Donation or superchat readings unless the host explicitly validates the content with his own sourcing\n" +
+"  • Viewer poll results UNLESS the host frames it as a geopolitical question (those go in Audience Polls)\n\n" +
+"HOST EMOTIONAL STATES:\n" +
+"Do not extract 'host feels,' 'host fears,' 'host has a negative opinion of,' or 'host is frustrated by' " +
+"unless directly paired with a specific named claim or prediction. Extract the claim — discard the emotional framing.\n\n" +
+"STANDARD EXCLUSIONS:\n" +
 "  • YouTube or channel metrics (subscriber counts, view counts, analytics, donation callouts)\n" +
-"  • Domestic crime unrelated to conflict zones\n" +
-"  • Public health content unrelated to military operations (cruise ship illness, domestic disease outbreaks)\n" +
 "  • Live chat audience comments, questions, or theories — UNLESS the host explicitly validates them\n" +
-"  • If the host reads a chat theory and then DEBUNKS it, extract only the host's conclusion, not the debunked theory\n" +
-"  • Personal anecdotes unrelated to geopolitical developments\n" +
+"  • If the host reads a chat theory and then DEBUNKS it, extract only the host's conclusion\n" +
+"  • Public health content unrelated to military operations\n" +
+"  • If it would not appear in an ISW daily update, do not extract it\n\n" +
 "Output ONLY plain bullet points. Be exhaustive — do not combine separate claims into one bullet.\n" +
 "If a bullet point is incomplete due to segment boundary, end it with [TRUNCATED].\n" +
 "If a chunk contains no relevant content: [No significant content in this segment]\n\n" +
@@ -746,7 +801,7 @@ function continueOSINTPipeline() {
     Logger.log("continueOSINTPipeline: No pipeline state found.");
     return;
   }
-  Logger.log("=== OSINT Pipeline v2.19 — Stage " + meta.stage + " Starting ===");
+  Logger.log("=== OSINT Pipeline v2.22 — Stage " + meta.stage + " Starting ===");
   try {
     if      (meta.stage === 2) { _runPipelineStage2(meta); }
     else if (meta.stage === 3) { _runPipelineStage3(meta); }
@@ -761,11 +816,8 @@ function continueOSINTPipeline() {
 }
 // ============================================================
 // STAGE 2 — (Deferred synthesis if needed) + News wire
-// FIX: If Stage 1 deferred Claude synthesis, run it here first
-//      before fetching the news wire.
 // ============================================================
 function _runPipelineStage2(meta) {
-  // If Stage 1 deferred Claude synthesis (large transcript), run it now
   if (meta.needsSynthesis) {
     Logger.log("Stage 2: Running deferred Claude synthesis...");
     const bullets      = _loadPipelineContent("extractedBullets");
@@ -831,10 +883,11 @@ function _runPipelineStage4(meta) {
   Logger.log("Executive digest done (Claude): " + digestHtml.length + " chars");
   sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtml);
   Logger.log("Email sent to " + CONFIG.EMAIL_RECIPIENTS.length + " recipients.");
+  assessUrgencyAndNotify(digestHtml, intelBrief, newsBrief);
   PropertiesService.getScriptProperties().setProperty("STAGE4_COMPLETE", "true");
   _clearPipelineState();
   PropertiesService.getScriptProperties().deleteProperty("STAGE4_COMPLETE");
-  Logger.log("=== Daily Pipeline v2.19 Complete ===");
+  Logger.log("=== Daily Pipeline v2.22 Complete ===");
 }
 // ============================================================
 // STAGE 4 RECOVERY
@@ -957,7 +1010,7 @@ function fetchNewsWire() {
     try {
       const resp = UrlFetchApp.fetch(feed.url, {
         muteHttpExceptions: true,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.19)" }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.22)" }
       });
       if (resp.getResponseCode() === 200) {
         const items = parseNewsRSS(resp.getContentText(), feed.name, feed.tier);
@@ -985,7 +1038,7 @@ function fetchRedditRSS() {
         "/top.rss?t=day&limit=" + CONFIG.REDDIT_POSTS_PER_SUB;
       const resp = UrlFetchApp.fetch(url, {
         muteHttpExceptions: true,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.19)" }
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; OSINTBot/2.22)" }
       });
       if (resp.getResponseCode() === 200) {
         const parsed = parseRSS(resp.getContentText(), sub.name, sub.weight);
@@ -1087,7 +1140,6 @@ function generateShortDigest(intelBrief, newsBrief, redditBrief) {
 // ============================================================
 // AI ANALYSIS — YouTube transcript (single-pass only)
 // Called from runOSINTPipeline for transcripts <= 200K chars.
-// Large transcripts are handled directly in runOSINTPipeline.
 // ============================================================
 function analyzeWithAI(transcript, videoMeta) {
   const yesterday = loadYesterdayMemory();
@@ -1183,7 +1235,7 @@ function analyzeReddit(posts, streamSummary) {
   return brief;
 }
 // ============================================================
-// SOURCE RELIABILITY SCORECARD — v2.19
+// SOURCE RELIABILITY SCORECARD
 // ============================================================
 function updateReliabilityScorecard(videoMeta, intelBrief, newsHeadlines) {
   try {
@@ -1450,7 +1502,7 @@ function extractAndSaveClaims(newsBrief, intelBrief, videoMeta, date) {
 // CLAIM AGING — Runs daily at CLAIM_AGING_HOUR
 // ============================================================
 function runClaimAging() {
-  Logger.log("=== Claim Aging v2.19 Starting ===");
+  Logger.log("=== Claim Aging v2.22 Starting ===");
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName("Claim Tracker");
@@ -1523,6 +1575,142 @@ function runClaimAging() {
   } catch(e) {
     Logger.log("runClaimAging ERROR: " + e.message);
   }
+}
+// ============================================================
+// URGENCY ASSESSMENT — Claude scores today's brief 1-5
+// Called from Stage 4. Sends push notification if level >= 4.
+// ============================================================
+function assessUrgencyAndNotify(digestHtml, intelBrief, newsBrief) {
+  try {
+    const plainNews  = newsBrief.replace(/<[^>]+>/g, " ");
+    const plainIntel = intelBrief.replace(/<[^>]+>/g, " ");
+
+    const discrepancyCount = (plainNews.match(/\[DISCREPANCY\]/g)           || []).length;
+    const flaggedCount     = (plainIntel.match(/FLAGGED-VERIFY/g)            || []).length;
+    const contradictCount  = (plainIntel.match(/\[CONTRADICTS YESTERDAY\]/g) || []).length;
+
+    const digestPlain = digestHtml
+      .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().substring(0, 3000);
+
+    const prompt = CONFIG.URGENCY_PROMPT
+      .replace("{DISCREPANCY_COUNT}", discrepancyCount)
+      .replace("{FLAGGED_COUNT}",     flaggedCount)
+      .replace("{CONTRADICTS_COUNT}", contradictCount)
+      .replace("{DIGEST}",            digestPlain);
+
+    const response = callClaude(prompt, 512);
+    const clean    = response.replace(/```json|```/g, "").trim();
+    const result   = JSON.parse(clean);
+
+    const level    = result.level    || 1;
+    const reason   = result.reason   || "No reason provided.";
+    const headline = result.headline || "OSINT Daily Brief Ready";
+
+    Logger.log("Urgency assessment — Level: " + level + " | " + reason);
+    Logger.log("Pipeline signals — DISCREPANCY: " + discrepancyCount +
+      " | FLAGGED: " + flaggedCount + " | CONTRADICTS: " + contradictCount);
+
+    logUrgencyToIntelLog(level, reason);
+
+    if (level >= 4) {
+      sendPushNotification(level, reason, headline);
+      Logger.log("PUSH NOTIFICATION SENT — Level " + level);
+    } else {
+      Logger.log("No push notification — Level " + level + " below threshold.");
+    }
+
+    return level;
+  } catch(e) {
+    Logger.log("assessUrgencyAndNotify error: " + e.message);
+    return 0;
+  }
+}
+// ============================================================
+// SEND PUSH NOTIFICATION — OneSignal REST API
+// ============================================================
+function sendPushNotification(level, reason, headline) {
+  try {
+    const appId  = PROPS.getProperty("ONESIGNAL_APP_ID")      || "";
+    const apiKey = PROPS.getProperty("ONESIGNAL_REST_API_KEY") || "";
+
+    if (!appId || !apiKey) {
+      Logger.log("OneSignal keys missing — push not sent.");
+      return;
+    }
+
+    const levelEmoji = level >= 5 ? "🚨🚨" : "⚡";
+    const payload = {
+      app_id:            appId,
+      included_segments: ["All"],
+      headings:  { en: levelEmoji + " OSINT ALERT — Level " + level + ": " + headline },
+      contents:  { en: reason },
+      data:      { level: level },
+      priority:  level >= 5 ? 10 : 7,
+      ttl:       3600
+    };
+
+    const resp = UrlFetchApp.fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": "Basic " + apiKey
+      },
+      payload:            JSON.stringify(payload),
+      muteHttpExceptions: true
+    });
+
+    Logger.log("OneSignal response: " + resp.getResponseCode() +
+      " — " + resp.getContentText().substring(0, 200));
+  } catch(e) {
+    Logger.log("sendPushNotification error: " + e.message);
+  }
+}
+// ============================================================
+// LOG URGENCY LEVEL TO INTEL LOG SHEET
+// ============================================================
+function logUrgencyToIntelLog(level, reason) {
+  try {
+    const ss    = SpreadsheetApp.openById(CONFIG.SHEET_ID);
+    const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
+    if (!sheet) return;
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return;
+
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+    if (!headers.includes("Urgency Level")) {
+      sheet.getRange(1, 9).setValue("Urgency Level");
+      sheet.getRange(1, 10).setValue("Urgency Reason");
+      sheet.getRange(1, 9, 1, 2)
+        .setFontWeight("bold").setBackground("#1a1a2e").setFontColor("#ffffff");
+    }
+
+    sheet.getRange(lastRow, 9).setValue(level);
+    sheet.getRange(lastRow, 10).setValue(reason);
+
+    var bg = "#ffffff";
+    if (level >= 5) bg = "#c0392b";
+    else if (level >= 4) bg = "#e74c3c";
+    else if (level >= 3) bg = "#f39c12";
+    else if (level >= 2) bg = "#f9e79f";
+    sheet.getRange(lastRow, 9).setBackground(bg);
+
+    Logger.log("Urgency level " + level + " logged to Intel Log row " + lastRow);
+  } catch(e) {
+    Logger.log("logUrgencyToIntelLog error: " + e.message);
+  }
+}
+// ============================================================
+// TEST — Run this manually to verify OneSignal push works
+// ============================================================
+function testUrgencyAlert() {
+  Logger.log("=== TEST: Urgency Alert System ===");
+  sendPushNotification(
+    4,
+    "TEST ONLY — Pipeline alert system test. No real event.",
+    "Alert system test — ignore"
+  );
+  Logger.log("Test push sent. Check your phone within 30 seconds.");
 }
 // ============================================================
 // CHUNK TEXT
@@ -1660,7 +1848,7 @@ function extractDiscrepancies(newsBrief) {
   return discrepancies.slice(0, 3);
 }
 // ============================================================
-// SEND EMAIL — v2.19
+// SEND EMAIL — v2.22
 // ============================================================
 function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtml) {
   const date = new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
@@ -1748,7 +1936,7 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
     redditBrief +
     '</div>' +
     '<p style="color:#aaa;font-size:11px;margin-top:20px;text-align:center;">' +
-    'Automated OSINT Pipeline v2.19 · Hybrid AI: Claude Sonnet 4.6 + Gemini 2.5 Flash · Open Source Intelligence Only<br>' +
+    'Automated OSINT Pipeline v2.22 · Hybrid AI: Claude Sonnet 4.6 + Gemini 2.5 Flash · Open Source Intelligence Only<br>' +
     'Digest: All Sources · Section 1: The Enforcer (YouTube — TIER C) · Section 2: Wire Services (TIER A/B) · Section 3: Reddit Community' +
     '</p>' +
     '</div>';
@@ -1772,7 +1960,7 @@ function sendEmailBrief(videoMeta, intelBrief, newsBrief, redditBrief, digestHtm
 // WEEKLY ROLLUP
 // ============================================================
 function runWeeklyRollup() {
-  Logger.log("=== Weekly Rollup v2.19 Starting ===");
+  Logger.log("=== Weekly Rollup v2.22 Starting ===");
   try {
     const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
     const sheet = ss.getSheetByName(CONFIG.SHEET_NAME);
@@ -1792,10 +1980,10 @@ function runWeeklyRollup() {
     });
     const reliabilityStats = getWeeklyReliabilityStats(ss);
     const weeklyBrief = callWeeklyAI(dayObjects, reliabilityStats);
-    Logger.log("Weekly brief (Claude): " + weeklyBrief.length + " chars");
+    Logger.log("Weekly brief (Opus): " + weeklyBrief.length + " chars");
     logWeeklyToSheet(weeklyBrief, rows.length);
     sendWeeklyEmail(weeklyBrief, rows.length, reliabilityStats);
-    Logger.log("=== Weekly Rollup v2.19 Complete ===");
+    Logger.log("=== Weekly Rollup v2.22 Complete ===");
   } catch(e) {
     Logger.log("WEEKLY ERROR: " + e.message);
     MailApp.sendEmail(CONFIG.EMAIL_RECIPIENTS[0], "Weekly Rollup Error", e.message);
@@ -1917,7 +2105,7 @@ function sendWeeklyEmail(weeklyBrief, dayCount, reliabilityStats) {
     '<div style="background:white;padding:24px 28px;border:1px solid #dce3ea;border-top:none;border-radius:0 0 8px 8px;line-height:1.8;">' +
     weeklyBrief + '</div>' +
     '<p style="color:#aaa;font-size:11px;margin-top:12px;text-align:center;">' +
-    'Automated OSINT Pipeline v2.18 · Weekly Rollup · Open Source Intelligence Only</p></div>';
+    'Automated OSINT Pipeline v2.22 · Weekly Rollup · Open Source Intelligence Only</p></div>';
   const plainText = "WEEKLY STRATEGIC ASSESSMENT — " + date + "\n\n" +
     weeklyBrief.replace(/<[^>]+>/g,"").replace(/\s+/g," ").trim();
   CONFIG.EMAIL_RECIPIENTS.forEach(function(email) {
@@ -1963,7 +2151,7 @@ function setupClaimAgingTrigger() {
 // TEST FUNCTIONS
 // ============================================================
 function testRun() {
-  Logger.log("=== TEST: Full Daily Pipeline v2.19 (Staged) ===");
+  Logger.log("=== TEST: Full Daily Pipeline v2.22 (Staged) ===");
   runOSINTPipeline();
 }
 function testRunStageStatus() {
