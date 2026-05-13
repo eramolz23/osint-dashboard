@@ -117,7 +117,7 @@ def scorecard():
         except (ValueError, TypeError):
             return 0.0
 
-    rows_desc = sorted(rows, key=lambda x: x.get("Date", ""), reverse=True)
+    rows_desc = sorted(rows, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
 
     chart_rows = sorted(rows, key=lambda x: x.get("Date", ""))
     chart_labels = [r.get("Date", "") for r in chart_rows]
@@ -181,7 +181,7 @@ def search():
             or ql in b.get("Date", "").lower()
             or ql in b.get("Channel", "").lower()
         ]
-        results = sorted(results, key=lambda x: x.get("Date", ""), reverse=True)
+        results = sorted(results, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
     return render_template("search.html", results=results, q=q)
 
 
