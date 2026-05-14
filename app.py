@@ -131,41 +131,6 @@ def scorecard():
     )
 
 
-@app.route("/claims")
-@require_auth
-def claims():
-    all_claims = sheets.get_claims()
-
-    category_filter = request.args.get("category", "").strip()
-    priority_filter = request.args.get("priority", "").strip()
-
-    filtered = all_claims
-    if category_filter:
-        filtered = [c for c in filtered if c.get("Category", "").lower() == category_filter.lower()]
-    if priority_filter:
-        filtered = [c for c in filtered if c.get("Priority", "").upper() == priority_filter.upper()]
-
-    filtered = sorted(filtered, key=lambda x: x.get("Date Added", ""), reverse=True)
-
-    open_claims         = [c for c in filtered if c.get("Status", "").upper() == "OPEN"]
-    confirmed_claims    = [c for c in filtered if c.get("Status", "").upper() == "CONFIRMED"]
-    contradicted_claims = [c for c in filtered if c.get("Status", "").upper() == "CONTRADICTED"]
-
-    all_categories = sorted({c.get("Category", "") for c in all_claims if c.get("Category")})
-    all_priorities = sorted({c.get("Priority", "") for c in all_claims if c.get("Priority")})
-
-    return render_template(
-        "claims.html",
-        open_claims=open_claims,
-        confirmed_claims=confirmed_claims,
-        contradicted_claims=contradicted_claims,
-        all_categories=all_categories,
-        all_priorities=all_priorities,
-        category_filter=category_filter,
-        priority_filter=priority_filter,
-        total=len(filtered),
-    )
-
 
 @app.route("/search")
 @require_auth
