@@ -10,45 +10,68 @@
     color: var(--text); border-radius: var(--radius); padding: 9px 14px; font-size: 14px;
   }
   .search-form input:focus { outline: none; border-color: var(--accent); }
+  .result-count { color: var(--muted); font-size: 13px; margin-bottom: 16px; font-family: var(--mono); }
   .result-row {
     background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
     border-radius: var(--radius); padding: 14px 18px; margin-bottom: 8px;
-    display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    transition: border-color 0.15s;
   }
-  .result-row:hover { border-color: var(--border-2); }
-  .result-title a { color: var(--text); font-size: 15px; font-weight: 500; }
+  .result-row:hover { border-color: var(--border-2); border-left-color: var(--accent); }
+  .result-header { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
+  .result-title a { color: var(--text); font-size: 14px; font-weight: 500; }
   .result-title a:hover { color: var(--accent); text-decoration: none; }
-  .result-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
-  .result-date { font-size: 12px; color: var(--dim); white-space: nowrap; }
-  .result-count { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .result-meta { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+  .result-date { font-family: var(--mono); font-size: 11px; color: var(--dim); white-space: nowrap; }
+  .result-snippets { margin-top: 10px; display: flex; flex-direction: column; gap: 5px; }
+  .result-snippet {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 7px 11px;
+    font-size: 12px; line-height: 1.6; color: var(--muted);
+  }
+  mark.kw {
+    background: rgba(245,158,11,0.25); color: var(--amber);
+    border-radius: 2px; padding: 0 2px; font-weight: 700;
+    text-decoration: none;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="search-hero">
   <div class="page-header">
-    <h1>Search</h1>
+    <h1>// SEARCH</h1>
+    <p>Searches titles, dates, channels, and full brief content</p>
   </div>
   <form class="search-form" action="{{ url_for('search') }}" method="get">
-    <input type="search" name="q" placeholder="Title, date, channel…" value="{{ q }}" autofocus />
+    <input type="search" name="q" placeholder="Keyword, date, channel..." value="{{ q }}" autofocus />
     <button class="btn btn-primary" type="submit">Search</button>
   </form>
 </div>
 
 {% if q %}
   {% if results %}
-    <p class="result-count">{{ results|length }} result{{ 's' if results|length != 1 }} for "<strong>{{ q }}</strong>"</p>
+    <p class="result-count">{{ results|length }} result{{ 's' if results|length != 1 }} for "{{ q }}"</p>
     {% for b in results %}
     <div class="result-row">
-      <div>
-        <div class="result-title">
-          <a href="{{ url_for('brief', row_index=b._row_index) }}">{{ b.get('Video Title', '(untitled)') }}</a>
+      <div class="result-header">
+        <div>
+          <div class="result-title">
+            <a href="{{ url_for('brief', row_index=b._row_index) }}">{{ b.get('Video Title', '(untitled)') }}</a>
+          </div>
+          {% if b.get('Channel') %}
+            <div class="result-meta">{{ b['Channel'] }}</div>
+          {% endif %}
         </div>
-        {% if b.get('Channel') %}
-          <div class="result-meta">{{ b['Channel'] }}</div>
-        {% endif %}
+        <div class="result-date">{{ b.get('Date', '&mdash;') }}</div>
       </div>
-      <div class="result-date">{{ b.get('Date', '—') }}</div>
+      {% if b.get('_snippets') %}
+      <div class="result-snippets">
+        {% for snippet in b['_snippets'] %}
+        <div class="result-snippet">...{{ snippet|safe }}...</div>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
   {% else %}

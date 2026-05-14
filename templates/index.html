@@ -3,49 +3,173 @@
 
 {% block head %}
 <style>
-  .briefs-list { display: flex; flex-direction: column; gap: 10px; }
-  .brief-row {
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat-card {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 16px 20px;
-    display: grid; grid-template-columns: 100px 1fr auto;
-    gap: 16px; align-items: center; transition: border-color 0.15s;
+    border-radius: var(--radius); padding: 16px 18px;
+    transition: border-color 0.15s;
+  }
+  .stat-card:hover { border-color: var(--border-2); }
+  .stat-value {
+    font-family: var(--mono); font-size: 28px; font-weight: 700;
+    line-height: 1.1; margin-bottom: 6px; letter-spacing: -0.02em;
+  }
+  .stat-label {
+    font-size: 10px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.08em; font-family: var(--mono);
+  }
+
+  .heatmap-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+    margin-bottom: 28px; overflow-x: auto;
+  }
+  .heatmap-header {
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim);
+    margin-bottom: 12px;
+  }
+  .heatmap { display: flex; gap: 3px; }
+  .heatmap-col { display: flex; flex-direction: column; gap: 3px; }
+  .heatmap-cell {
+    width: 12px; height: 12px; border-radius: 2px; flex-shrink: 0;
+  }
+  .hm-future { background: transparent; border: 1px solid rgba(26,51,82,0.5); }
+  .hm-empty  { background: var(--surface-2); }
+  .hm-has    { background: rgba(56,189,248,0.4); }
+  .hm-green  { background: rgba(34,197,94,0.75); }
+  .hm-amber  { background: rgba(245,158,11,0.75); }
+  .hm-red    { background: rgba(239,68,68,0.65); }
+  .heatmap-legend {
+    display: flex; align-items: center; gap: 6px;
+    margin-top: 10px; font-size: 10px; color: var(--dim); font-family: var(--mono);
+  }
+
+  .briefs-list { display: flex; flex-direction: column; gap: 8px; }
+  .brief-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius); padding: 13px 18px;
+    display: grid; grid-template-columns: 110px 1fr auto;
+    gap: 16px; align-items: center;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    cursor: pointer;
   }
   .brief-row:hover { border-color: var(--border-2); }
-  .brief-date { font-size: 12px; color: var(--dim); white-space: nowrap; }
-  .brief-title { font-size: 15px; font-weight: 500; }
-  .brief-channel { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .brief-row.rate-green { border-left-color: rgba(34,197,94,0.6); }
+  .brief-row.rate-amber { border-left-color: rgba(245,158,11,0.6); }
+  .brief-row.rate-red   { border-left-color: rgba(239,68,68,0.6); }
+  .brief-row.rate-green:hover { border-left-color: var(--green); }
+  .brief-row.rate-amber:hover { border-left-color: var(--amber); }
+  .brief-row.rate-red:hover   { border-left-color: var(--red); }
+  .brief-row.kb-focus {
+    border-color: var(--accent); border-left-color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(56,189,248,0.12);
+  }
+  .brief-date {
+    font-family: var(--mono); font-size: 11px; color: var(--dim);
+    white-space: nowrap; letter-spacing: 0.03em;
+  }
+  .brief-title { font-size: 14px; font-weight: 500; }
+  .brief-channel { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
   .brief-title a { color: var(--text); }
   .brief-title a:hover { color: var(--accent); text-decoration: none; }
   .brief-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  @media (max-width: 600px) {
+
+  @media (max-width: 640px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .stat-value { font-size: 22px; }
     .brief-row { grid-template-columns: 1fr; }
-    .brief-meta { margin-top: 8px; }
+    .brief-meta { margin-top: 6px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="page-header">
-  <h1>Daily Briefs</h1>
-  <p>{{ briefs|length }} brief{{ 's' if briefs|length != 1 }} — most recent first</p>
+  <h1>// INTEL FEED</h1>
+  <p>{{ briefs|length }} brief{{ 's' if briefs|length != 1 }} tracked &mdash; live from source</p>
 </div>
+
+<div class="stats-bar">
+  <div class="stat-card">
+    <div class="stat-value text-accent">{{ total_briefs }}</div>
+    <div class="stat-label">briefs tracked</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value {% if latest_rate is not none %}{% if latest_rate >= 60 %}text-green{% elif latest_rate >= 40 %}text-amber{% else %}text-red{% endif %}{% endif %}">
+      {% if latest_rate is not none %}{{ latest_rate|int }}%{% else %}—{% endif %}
+    </div>
+    <div class="stat-label">latest conf. rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value {% if days_since is not none %}{% if days_since == 0 %}text-green{% elif days_since <= 2 %}text-amber{% else %}text-red{% endif %}{% endif %}">
+      {% if days_since is not none %}{{ days_since }}d{% else %}—{% endif %}
+    </div>
+    <div class="stat-label">since last brief</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value {% if trend == 'improving' %}text-green{% elif trend == 'declining' %}text-red{% else %}text-amber{% endif %}">
+      {% if trend == 'improving' %}&#9650; rising{% elif trend == 'declining' %}&#9660; falling{% else %}&#8594; stable{% endif %}
+    </div>
+    <div class="stat-label">source trend</div>
+  </div>
+</div>
+
+{% if heatmap_weeks %}
+<div class="heatmap-wrap">
+  <div class="heatmap-header">coverage &mdash; last 12 months</div>
+  <div class="heatmap">
+    {% for week in heatmap_weeks %}
+    <div class="heatmap-col">
+      {% for day in week %}
+      <div class="heatmap-cell
+        {% if day.future %}hm-future
+        {% elif not day.has_brief %}hm-empty
+        {% elif day.rate is not none and day.rate >= 60 %}hm-green
+        {% elif day.rate is not none and day.rate >= 40 %}hm-amber
+        {% elif day.rate is not none %}hm-red
+        {% else %}hm-has
+        {% endif %}"
+        title="{{ day.date }}{% if day.has_brief %} &mdash; {% if day.rate is not none %}{{ day.rate|int }}% confirmed{% else %}no score{% endif %}{% endif %}">
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="heatmap-legend">
+    <span>less</span>
+    <div class="heatmap-cell hm-empty"></div>
+    <div class="heatmap-cell hm-red"></div>
+    <div class="heatmap-cell hm-amber"></div>
+    <div class="heatmap-cell hm-green"></div>
+    <span>more confirmed</span>
+  </div>
+</div>
+{% endif %}
 
 {% if briefs %}
 <div class="briefs-list">
   {% for b in briefs %}
   {% set rate = b._rate %}
   {% if rate is not none %}
-    {% if rate >= 60 %}{% set badge_cls = 'badge-green' %}
-    {% elif rate >= 40 %}{% set badge_cls = 'badge-amber' %}
-    {% else %}{% set badge_cls = 'badge-red' %}
+    {% if rate >= 60 %}{% set badge_cls = 'badge-green' %}{% set row_cls = 'rate-green' %}
+    {% elif rate >= 40 %}{% set badge_cls = 'badge-amber' %}{% set row_cls = 'rate-amber' %}
+    {% else %}{% set badge_cls = 'badge-red' %}{% set row_cls = 'rate-red' %}
     {% endif %}
-  {% else %}{% set badge_cls = 'badge-gray' %}{% endif %}
+  {% else %}{% set badge_cls = 'badge-gray' %}{% set row_cls = '' %}{% endif %}
 
-  <div class="brief-row">
-    <div class="brief-date">{{ b.get('Date', '—') }}</div>
+  <div class="brief-row {{ row_cls }}"
+       data-href="{{ url_for('brief', row_index=b._row_index) }}"
+       onclick="window.location.href=this.dataset.href">
+    <div class="brief-date">{{ b.get('Date', '&mdash;') }}</div>
     <div>
       <div class="brief-title">
-        <a href="{{ url_for('brief', row_index=b._row_index) }}">
+        <a href="{{ url_for('brief', row_index=b._row_index) }}" onclick="event.stopPropagation()">
           {{ b.get('Video Title', '(untitled)') }}
         </a>
       </div>
@@ -55,7 +179,7 @@
     </div>
     <div class="brief-meta">
       {% if rate is not none %}
-        <span class="badge {{ badge_cls }}">{{ rate|int }}% confirmed</span>
+        <span class="badge {{ badge_cls }}">{{ rate|int }}%</span>
       {% else %}
         <span class="badge badge-gray">no score</span>
       {% endif %}
