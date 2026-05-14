@@ -7,10 +7,14 @@
   .brief-row {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 16px 20px;
-    display: grid; grid-template-columns: 100px 1fr auto;
-    gap: 16px; align-items: center; transition: border-color 0.15s;
+    display: grid; grid-template-columns: 110px 1fr auto;
+    gap: 16px; align-items: center;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
-  .brief-row:hover { border-color: var(--border-2); }
+  .brief-row:hover {
+    border-color: var(--border-2);
+    box-shadow: 0 1px 12px rgba(0,0,0,0.3);
+  }
   .brief-date { font-size: 12px; color: var(--dim); white-space: nowrap; }
   .brief-title { font-size: 15px; font-weight: 500; }
   .brief-channel { font-size: 12px; color: var(--muted); margin-top: 2px; }

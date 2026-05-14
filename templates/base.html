@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}OSINT Dashboard{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <!-- PWA -->
   <link rel="manifest" href="/static/manifest.json" />
@@ -40,28 +43,29 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:          #060e1f;
-      --nav:         #040a16;
-      --surface:     #0b1830;
-      --surface-2:   #0f2040;
-      --border:      #1e3a5f;
-      --border-2:    #2a4f7a;
-      --text:        #e2e8f0;
-      --muted:       #94a3b8;
-      --dim:         #64748b;
+      --bg:          #0a0f1e;
+      --nav:         #070d1a;
+      --surface:     #0e1628;
+      --surface-2:   #131e33;
+      --border:      #1e3250;
+      --border-2:    #2a4568;
+      --text:        #f1f5f9;
+      --muted:       #8899b4;
+      --dim:         #506070;
       --accent:      #3b82f6;
+      --accent-hover:#2563eb;
       --green:       #22c55e;
-      --green-bg:    rgba(34,197,94,0.12);
+      --green-bg:    rgba(34,197,94,0.1);
       --amber:       #f59e0b;
-      --amber-bg:    rgba(245,158,11,0.12);
+      --amber-bg:    rgba(245,158,11,0.1);
       --red:         #ef4444;
-      --red-bg:      rgba(239,68,68,0.12);
-      --radius:      6px;
+      --red-bg:      rgba(239,68,68,0.1);
+      --radius:      8px;
     }
 
     html, body { height: 100%; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      font-size: 14px; line-height: 1.6; }
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
@@ -78,19 +82,19 @@
       display: flex; align-items: center; gap: 24px;
     }
     .nav-brand {
-      font-size: 13px; font-weight: 700; letter-spacing: 0.1em;
-      text-transform: uppercase; color: var(--accent);
+      font-size: 13px; font-weight: 700; letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--text);
       white-space: nowrap; text-decoration: none;
     }
-    .nav-brand:hover { text-decoration: none; color: var(--accent); }
-    .nav-links { display: flex; gap: 4px; }
+    .nav-brand:hover { text-decoration: none; color: var(--text); }
+    .nav-links { display: flex; gap: 2px; }
     .nav-links a {
-      color: var(--muted); font-size: 13px; padding: 5px 10px;
-      border-radius: var(--radius); transition: color 0.15s, background 0.15s;
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      padding: 5px 11px; border-radius: var(--radius);
+      transition: color 0.12s, background 0.12s;
     }
-    .nav-links a:hover, .nav-links a.active {
-      color: var(--text); background: var(--surface-2); text-decoration: none;
-    }
+    .nav-links a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
+    .nav-links a.active { color: var(--text); background: var(--surface-2); font-weight: 600; text-decoration: none; }
     .nav-search {
       flex: 1; max-width: 320px; margin-left: auto;
       display: flex; gap: 6px;
@@ -99,6 +103,7 @@
       flex: 1; background: var(--surface); border: 1px solid var(--border);
       color: var(--text); border-radius: var(--radius);
       padding: 5px 10px; font-size: 13px;
+      font-family: inherit;
     }
     .nav-search input:focus { outline: none; border-color: var(--accent); }
     .nav-search input::placeholder { color: var(--dim); }
@@ -115,10 +120,10 @@
     .nav-logout:hover { color: var(--red); text-decoration: none; }
 
     /* ── Page wrapper ── */
-    .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
-    .page-header { margin-bottom: 24px; }
-    .page-header h1 { font-size: 20px; font-weight: 600; }
-    .page-header p { color: var(--muted); margin-top: 4px; font-size: 13px; }
+    .page { max-width: 1200px; margin: 0 auto; padding: 32px 20px; }
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+    .page-header p { color: var(--muted); margin-top: 5px; font-size: 13px; }
 
     /* ── Badges ── */
     .badge {
@@ -136,10 +141,10 @@
     .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
     table { width: 100%; border-collapse: collapse; }
     thead { background: var(--surface); }
-    th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600;
-         letter-spacing: 0.06em; text-transform: uppercase; color: var(--dim);
+    th { padding: 11px 14px; text-align: left; font-size: 11px; font-weight: 600;
+         letter-spacing: 0.05em; text-transform: uppercase; color: var(--dim);
          border-bottom: 1px solid var(--border); white-space: nowrap; }
-    td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
     tr:last-child td { border-bottom: none; }
     tr:hover td { background: var(--surface-2); }
     .row-green td { background: rgba(34,197,94,0.05); }
@@ -167,8 +172,8 @@
       color: var(--text); transition: background 0.15s, border-color 0.15s;
     }
     .btn:hover { background: var(--surface-2); border-color: var(--border-2); }
-    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .btn-primary:hover { background: #2563eb; border-color: #2563eb; }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
     .btn-sm { padding: 3px 10px; font-size: 12px; }
 
     /* ── Error ── */
