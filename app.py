@@ -99,61 +99,7 @@ def index():
         b["_rate"] = rate_by_date.get(b.get("Date", "").strip())
 
     briefs = sorted(briefs, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
-
-    total_briefs = len(briefs)
-    latest_rate = briefs[0].get("_rate") if briefs else None
-    days_since = None
-    if briefs:
-        last_date = parse_date(briefs[0].get("Date", ""))
-        if last_date:
-            days_since = (datetime.utcnow().date() - last_date).days
-
-    rates_desc = [b["_rate"] for b in briefs if b.get("_rate") is not None]
-    trend = "stable"
-    if len(rates_desc) >= 4:
-        mid = len(rates_desc) // 2
-        recent_avg = sum(rates_desc[:mid]) / mid
-        older_avg = sum(rates_desc[mid:]) / (len(rates_desc) - mid)
-        if recent_avg > older_avg + 3:
-            trend = "improving"
-        elif recent_avg < older_avg - 3:
-            trend = "declining"
-
-    today = datetime.utcnow().date()
-    days_to_sunday = (today.weekday() + 1) % 7
-    week_start = today - timedelta(days=days_to_sunday)
-    heatmap_start = week_start - timedelta(weeks=51)
-
-    brief_date_map = {}
-    for b in briefs:
-        d = parse_date(b.get("Date", ""))
-        if d:
-            brief_date_map[d] = b.get("_rate")
-
-    heatmap_weeks = []
-    cur = heatmap_start
-    while cur <= week_start:
-        week = []
-        for i in range(7):
-            d = cur + timedelta(days=i)
-            week.append({
-                "date": d.strftime("%b %d"),
-                "has_brief": d in brief_date_map,
-                "rate": brief_date_map.get(d),
-                "future": d > today,
-            })
-        heatmap_weeks.append(week)
-        cur += timedelta(weeks=1)
-
-    return render_template(
-        "index.html",
-        briefs=briefs,
-        total_briefs=total_briefs,
-        latest_rate=latest_rate,
-        days_since=days_since,
-        trend=trend,
-        heatmap_weeks=heatmap_weeks,
-    )
+    return render_template("index.html", briefs=briefs)
 
 
 @app.route("/brief/<int:row_index>")
@@ -171,10 +117,6 @@ def brief(row_index):
 def scorecard():
     rows = sheets.get_scorecard()
 
-    def safe_int(v):
-        try: return int(float(v or 0))
-        except (ValueError, TypeError): return 0
-
     def parse_rate(r):
         try:
             return float(r.get("Confirmation Rate %", "") or 0)
@@ -186,22 +128,11 @@ def scorecard():
     chart_labels = [r.get("Date", "") for r in chart_rows]
     chart_data = [parse_rate(r) for r in chart_rows]
 
-    session_count = len(rows)
-    avg_rate = round(sum(chart_data) / len(chart_data)) if chart_data else 0
-    best_rate = round(max(chart_data)) if chart_data else 0
-    total_c3 = sum(safe_int(r.get("C3 Count", 0)) for r in rows)
-    total_claims_all = sum(safe_int(r.get("Total Claims", 0)) for r in rows)
-
     return render_template(
         "scorecard.html",
         rows=rows_desc,
         chart_labels=chart_labels,
         chart_data=chart_data,
-        session_count=session_count,
-        avg_rate=avg_rate,
-        best_rate=best_rate,
-        total_c3=total_c3,
-        total_claims_all=total_claims_all,
     )
 
 
