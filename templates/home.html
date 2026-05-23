@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% block title %}Command Center — Luke Command Center{% endblock %}
+
+{% block head %}
+<style>
+  .cc-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border);
+  }
+  .cc-title-sub {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 4px;
+  }
+  .cc-title-main { font-size: 20px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
+  .cc-sys {
+    text-align: right; font-size: 11px; color: var(--dim);
+    font-family: ui-monospace, "SF Mono", monospace; line-height: 1.8;
+  }
+  .cc-sys .nominal { color: var(--green); font-weight: 700; letter-spacing: 0.06em; }
+
+  .card-grid { display: grid; gap: 14px; }
+  .g3      { grid-template-columns: repeat(3, 1fr); }
+  .g2-wide { grid-template-columns: 2fr 1fr; }
+  .g3-even { grid-template-columns: repeat(3, 1fr); }
+
+  .cc-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+
+  .card-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .card-label::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  }
+  .lbl-green::before { background: var(--green); }
+  .lbl-blue::before  { background: var(--accent); }
+  .lbl-amber::before { background: var(--amber); }
+  .lbl-dim::before   { background: var(--dim); }
+
+  .stat-num { font-size: 32px; font-weight: 700; line-height: 1; color: var(--text); }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .stat-mono { font-family: ui-monospace, "SF Mono", monospace; }
+
+  .brief-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
+  .brief-meta  { font-size: 12px; color: var(--dim); }
+
+  .weekly-week { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .weekly-preview {
+    font-size: 13px; color: var(--muted); line-height: 1.6;
+    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  .quick-links { display: flex; flex-direction: column; gap: 7px; }
+  .ql {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); font-size: 13px; color: var(--text);
+    transition: border-color 0.12s;
+  }
+  .ql:hover { border-color: var(--accent); text-decoration: none; color: var(--text); }
+  .ql-icon { font-size: 10px; color: var(--dim); width: 12px; }
+
+  .ph-card { opacity: 0.65; }
+  .ph-status {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--dim); padding: 2px 8px;
+    border: 1px solid var(--border); border-radius: 100px; margin-bottom: 10px;
+  }
+  .ph-desc { font-size: 13px; color: var(--dim); line-height: 1.55; margin-bottom: 12px; }
+
+  .card-link {
+    display: inline-block; margin-top: 10px; font-size: 12px;
+    color: var(--accent); text-decoration: none;
+  }
+  .card-link:hover { text-decoration: underline; }
+
+  @media (max-width: 900px) {
+    .g3      { grid-template-columns: 1fr 1fr; }
+    .g2-wide { grid-template-columns: 1fr; }
+    .g3-even { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 560px) {
+    .g3, .g3-even { grid-template-columns: 1fr; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cc-header">
+  <div>
+    <div class="cc-title-sub">System Overview</div>
+    <div class="cc-title-main">Luke Command Center</div>
+  </div>
+  <div class="cc-sys">
+    <div class="nominal">&#9679; NOMINAL</div>
+    <div>{{ fetched_at }}</div>
+    <div>OSINT // INTEL // OPS</div>
+  </div>
+</div>
+
+<!-- Row 1: Status / Snapshot / Latest Brief -->
+<div class="card-grid g3" style="margin-bottom:14px">
+
+  <div class="cc-card">
+    <div class="card-label lbl-green">Command Status</div>
+    <div class="stat-num" style="color:var(--green)">NOMINAL</div>
+    <div class="stat-sub">All modules online</div>
+    <div class="stat-sub stat-mono" style="margin-top:10px;color:var(--dim)">{{ fetched_at }}</div>
+  </div>
+
+  <div class="cc-card">
+    <div class="card-label lbl-blue">OSINT Snapshot</div>
+    {% if brief_count > 0 %}
+      <div class="stat-num">{{ brief_count }}</div>
+      <div class="stat-sub">intel entries logged</div>
+      {% if latest_brief %}
+        <div class="stat-sub" style="margin-top:10px">
+          Latest: <strong style="color:var(--text)">{{ latest_brief.get('Date', '—') }}</strong>
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="stat-sub">No entries found.</div>
+    {% endif %}
+    <a class="card-link" href="{{ url_for('osint_briefs') }}">View Intel Log &rarr;</a>
+  </div>
+
+  <div class="cc-card">
+    <div class="card-label lbl-blue">Latest Brief</div>
+    {% if latest_brief %}
+      <div class="brief-title">{{ latest_brief.get('Video Title', '(untitled)') }}</div>
+      <div class="brief-meta">
+        {{ latest_brief.get('Date', '—') }}
+        {% if latest_brief.get('Channel') %} &middot; {{ latest_brief.get('Channel') }}{% endif %}
+      </div>
+      {% if latest_brief.get('Video URL') %}
+        <div style="margin-top:6px">
+          <a href="{{ latest_brief.get('Video URL') }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent)">Watch &nearr;</a>
+        </div>
+      {% endif %}
+      <a class="card-link" href="{{ url_for('brief', row_index=latest_brief._row_index) }}">Read Brief &rarr;</a>
+    {% else %}
+      <div class="stat-sub">No briefs available.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Row 2: Weekly Assessment / Quick Links -->
+<div class="card-grid g2-wide" style="margin-bottom:14px">
+
+  <div class="cc-card">
+    <div class="card-label lbl-amber">Weekly Assessment</div>
+    {% if latest_rollup %}
+      <div class="weekly-week">
+        Week ending {{ latest_rollup.get('Week Ending', '—') }}
+        {% if latest_rollup.get('Days Covered') %}
+          <span style="font-weight:400;color:var(--dim);font-size:12px"> &middot; {{ latest_rollup.get('Days Covered') }} days</span>
+        {% endif %}
+      </div>
+      <div class="weekly-preview">{{ latest_rollup.get('Weekly Assessment', '')|striptags|truncate(300) }}</div>
+      <a class="btn btn-sm" href="{{ url_for('weekly_detail', row_index=latest_rollup._row_index) }}">Full Assessment &rarr;</a>
+      <a class="btn btn-sm" href="{{ url_for('weekly') }}" style="margin-left:8px">All Rollups</a>
+    {% else %}
+      <div class="stat-sub">No weekly rollups available.</div>
+      <a class="card-link" href="{{ url_for('weekly') }}">Weekly Archive &rarr;</a>
+    {% endif %}
+  </div>
+
+  <div class="cc-card">
+    <div class="card-label lbl-dim">Quick Links</div>
+    <div class="quick-links">
+      <a class="ql" href="{{ url_for('osint_briefs') }}"><span class="ql-icon">&#9632;</span> OSINT Intel Log</a>
+      <a class="ql" href="{{ url_for('weekly') }}"><span class="ql-icon">&#9632;</span> Weekly Rollups</a>
+      <a class="ql" href="{{ url_for('chat') }}"><span class="ql-icon">&#9632;</span> AI Chat</a>
+      <a class="ql" href="{{ url_for('timeline') }}"><span class="ql-icon">&#9632;</span> Timeline Search</a>
+      <a class="ql" href="{{ url_for('search') }}"><span class="ql-icon">&#9632;</span> Keyword Search</a>
+    </div>
+  </div>
+
+</div>
+
+<!-- Row 3: Module Placeholders -->
+<div class="card-grid g3-even">
+
+  <div class="cc-card ph-card">
+    <div class="card-label lbl-dim">Projects</div>
+    <div class="ph-status">Ready for Integration</div>
+    <div class="ph-desc">Project tracking, task boards, and progress logs.</div>
+    <a class="card-link" href="{{ url_for('projects') }}">Open Module &rarr;</a>
+  </div>
+
+  <div class="cc-card ph-card">
+    <div class="card-label lbl-dim">ROTC / Army</div>
+    <div class="ph-status">Ready for Integration</div>
+    <div class="ph-desc">Advanced Camp and Air Assault preparation, duty logs, and training records.</div>
+    <a class="card-link" href="{{ url_for('rotc') }}">Open Module &rarr;</a>
+  </div>
+
+  <div class="cc-card ph-card">
+    <div class="card-label lbl-dim">School</div>
+    <div class="ph-status">Ready for Integration</div>
+    <div class="ph-desc">Coursework, grades, and academic planning.</div>
+    <a class="card-link" href="{{ url_for('school') }}">Open Module &rarr;</a>
+  </div>
+
+</div>
+{% endblock %}

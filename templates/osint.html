@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}OSINT Intel Log — Luke Command Center{% endblock %}
+
+{% block head %}
+<style>
+  .osint-top {
+    display: grid; grid-template-columns: 1fr 280px; gap: 14px; margin-bottom: 28px;
+  }
+  .rollup-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+  }
+  .rollup-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--amber); margin-bottom: 10px;
+  }
+  .rollup-week { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .rollup-preview {
+    font-size: 13px; color: var(--muted); line-height: 1.55;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .search-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px;
+    display: flex; flex-direction: column; justify-content: center; gap: 10px;
+  }
+  .search-card-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim);
+  }
+  .search-row { display: flex; gap: 8px; }
+  .search-row input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); border-radius: var(--radius);
+    padding: 8px 12px; font-size: 13px; font-family: inherit;
+  }
+  .search-row input:focus { outline: none; border-color: var(--accent); }
+  .search-hint { font-size: 11px; color: var(--dim); }
+
+  .briefs-list { display: flex; flex-direction: column; gap: 10px; }
+  .brief-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px 18px;
+    display: grid; grid-template-columns: 100px 1fr auto;
+    gap: 14px; align-items: center;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .brief-row:hover { border-color: var(--border-2); box-shadow: 0 1px 12px rgba(0,0,0,0.3); }
+  .brief-date {
+    font-size: 12px; color: var(--dim); white-space: nowrap;
+    font-family: ui-monospace, "SF Mono", monospace;
+  }
+  .brief-title { font-size: 14px; font-weight: 500; }
+  .brief-title a { color: var(--text); }
+  .brief-title a:hover { color: var(--accent); text-decoration: none; }
+  .brief-channel { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .brief-meta { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  @media (max-width: 720px) {
+    .osint-top { grid-template-columns: 1fr; }
+    .brief-row { grid-template-columns: 1fr; }
+    .brief-meta { margin-top: 6px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>OSINT Intel Log</h1>
+  <p>{{ briefs|length }} intel entr{{ 'ies' if briefs|length != 1 else 'y' }} — most recent first</p>
+</div>
+
+<div class="osint-top">
+
+  {% if latest_rollup %}
+  <div class="rollup-card">
+    <div class="rollup-label">&#9632; Latest Weekly Rollup</div>
+    <div class="rollup-week">Week ending {{ latest_rollup.get('Week Ending', '—') }}</div>
+    <div class="rollup-preview">{{ latest_rollup.get('Weekly Assessment', '')|striptags|truncate(240) }}</div>
+    <a href="{{ url_for('weekly_detail', row_index=latest_rollup._row_index) }}" class="btn btn-sm">Full Assessment &rarr;</a>
+    <a href="{{ url_for('weekly') }}" class="btn btn-sm" style="margin-left:6px">All Rollups</a>
+  </div>
+  {% else %}
+  <div class="rollup-card">
+    <div class="rollup-label">&#9632; Latest Weekly Rollup</div>
+    <p class="text-muted" style="font-size:13px">No weekly rollups available.</p>
+    <a href="{{ url_for('weekly') }}" class="btn btn-sm" style="margin-top:12px">Weekly Archive</a>
+  </div>
+  {% endif %}
+
+  <form class="search-card" action="{{ url_for('search') }}" method="get">
+    <div class="search-card-label">Keyword Search</div>
+    <div class="search-row">
+      <input type="search" name="q" placeholder="Search briefs, channels…">
+      <button class="btn btn-primary" type="submit">Go</button>
+    </div>
+    <div class="search-hint">Searches titles, channels, TAC-INT briefs, and weekly assessments</div>
+  </form>
+
+</div>
+
+{% if briefs %}
+<div class="briefs-list">
+  {% for b in briefs %}
+  {% set rate = b._rate %}
+  {% if rate is not none %}
+    {% if rate >= 60 %}{% set badge_cls = 'badge-green' %}
+    {% elif rate >= 40 %}{% set badge_cls = 'badge-amber' %}
+    {% else %}{% set badge_cls = 'badge-red' %}
+    {% endif %}
+  {% else %}{% set badge_cls = 'badge-gray' %}{% endif %}
+
+  <div class="brief-row">
+    <div class="brief-date">{{ b.get('Date', '—') }}</div>
+    <div>
+      <div class="brief-title">
+        <a href="{{ url_for('brief', row_index=b._row_index) }}">{{ b.get('Video Title', '(untitled)') }}</a>
+      </div>
+      <div class="brief-channel">
+        {% if b.get('Channel') %}{{ b.get('Channel') }}{% endif %}
+        {% if b.get('Video URL') %}
+          {% if b.get('Channel') %} &middot; {% endif %}
+          <a href="{{ b.get('Video URL') }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent)">Watch &nearr;</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="brief-meta">
+      {% if rate is not none %}
+        <span class="badge {{ badge_cls }}">{{ rate|int }}%</span>
+      {% else %}
+        <span class="badge badge-gray">&mdash;</span>
+      {% endif %}
+      <a href="{{ url_for('brief', row_index=b._row_index) }}" class="btn btn-sm">View</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty">No intel entries found. Check that the Intel Log tab has data.</div>
+{% endif %}
+{% endblock %}

@@ -81,9 +81,22 @@ def logout():
 
 @app.route("/")
 @require_auth
-def index():
+def home():
+    briefs = sheets.get_intel_log()
+    rollups = sheets.get_weekly_rollups()
+    briefs_sorted = sorted(briefs, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
+    latest_brief = briefs_sorted[0] if briefs_sorted else None
+    rollups_sorted = sorted(rollups, key=lambda x: x.get("Week Ending", ""), reverse=True)
+    latest_rollup = rollups_sorted[0] if rollups_sorted else None
+    return render_template("home.html", latest_brief=latest_brief, latest_rollup=latest_rollup, brief_count=len(briefs))
+
+
+@app.route("/osint")
+@require_auth
+def osint_briefs():
     briefs = sheets.get_intel_log()
     scorecard = sheets.get_scorecard()
+    rollups = sheets.get_weekly_rollups()
 
     rate_by_date = {}
     for row in scorecard:
@@ -99,7 +112,9 @@ def index():
         b["_rate"] = rate_by_date.get(b.get("Date", "").strip())
 
     briefs = sorted(briefs, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
-    return render_template("index.html", briefs=briefs)
+    rollups_sorted = sorted(rollups, key=lambda x: x.get("Week Ending", ""), reverse=True)
+    latest_rollup = rollups_sorted[0] if rollups_sorted else None
+    return render_template("osint.html", briefs=briefs, latest_rollup=latest_rollup)
 
 
 @app.route("/brief/<int:row_index>")
@@ -142,6 +157,7 @@ def scorecard():
 def search():
     q = request.args.get("q", "").strip()
     results = []
+    weekly_results = []
     if q:
         briefs = sheets.get_intel_log()
         ql = q.lower()
@@ -165,7 +181,26 @@ def search():
                 b["_snippets"] = snippets
                 results.append(b)
         results = sorted(results, key=lambda x: parse_date(x.get("Date", "")) or datetime.min.date(), reverse=True)
-    return render_template("search.html", results=results, q=q)
+
+        rollups = sheets.get_weekly_rollups()
+        for r in rollups:
+            week_match = (
+                ql in r.get("Week Ending", "").lower()
+                or ql in r.get("Days Covered", "").lower()
+            )
+            snippets = []
+            content = r.get("Weekly Assessment", "")
+            if content:
+                for s in _sentences_containing(content, q):
+                    snippets.append(_highlight(s, q))
+                    if len(snippets) >= 3:
+                        break
+            if week_match or snippets:
+                r["_snippets"] = snippets
+                weekly_results.append(r)
+        weekly_results = sorted(weekly_results, key=lambda x: x.get("Week Ending", ""), reverse=True)
+
+    return render_template("search.html", results=results, weekly_results=weekly_results, q=q)
 
 
 # ── Weekly Rollups ────────────────────────────────────────────────────────────
@@ -186,6 +221,64 @@ def weekly_detail(row_index):
     if not match:
         return render_template("error.html", message="Weekly rollup not found."), 404
     return render_template("weekly_detail.html", rollup=match)
+
+
+# ── Module placeholders ───────────────────────────────────────────────────────
+
+@app.route("/projects")
+@require_auth
+def projects():
+    return render_template("placeholder.html",
+        module_name="Projects",
+        module_desc="Project tracking, task boards, and progress logs. Connect a data source to activate this module.",
+        module_items=[
+            {"label": "Active Projects", "desc": "Coming soon"},
+            {"label": "Task Boards", "desc": "Coming soon"},
+            {"label": "Progress Logs", "desc": "Coming soon"},
+        ]
+    )
+
+
+@app.route("/rotc")
+@require_auth
+def rotc():
+    return render_template("placeholder.html",
+        module_name="ROTC / Army",
+        module_desc="Advanced Camp and Air Assault preparation, duty logs, training records, and PT tracking.",
+        module_items=[
+            {"label": "Advanced Camp", "desc": "Ready for integration"},
+            {"label": "Air Assault", "desc": "Ready for integration"},
+            {"label": "Duty Log", "desc": "Ready for integration"},
+            {"label": "PT Tracker", "desc": "Ready for integration"},
+        ]
+    )
+
+
+@app.route("/school")
+@require_auth
+def school():
+    return render_template("placeholder.html",
+        module_name="School",
+        module_desc="Coursework, grades, assignment deadlines, and academic planning.",
+        module_items=[
+            {"label": "Courses", "desc": "Ready for integration"},
+            {"label": "Grade Tracker", "desc": "Ready for integration"},
+            {"label": "Deadlines", "desc": "Ready for integration"},
+        ]
+    )
+
+
+@app.route("/notes")
+@require_auth
+def notes():
+    return render_template("placeholder.html",
+        module_name="Notes",
+        module_desc="Quick notes, reference material, and mission logs.",
+        module_items=[
+            {"label": "Quick Notes", "desc": "Ready for integration"},
+            {"label": "Reference", "desc": "Ready for integration"},
+        ]
+    )
 
 
 # ── Timeline Search ───────────────────────────────────────────────────────────

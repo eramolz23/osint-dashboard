@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}OSINT Dashboard{% endblock %}</title>
+  <title>{% block title %}Luke Command Center{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
   <!-- iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="OSINT" />
+  <meta name="apple-mobile-web-app-title" content="LCC" />
   <link rel="apple-touch-icon" href="/static/icon-192.png" />
   <!-- OneSignal Web Push -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
@@ -87,32 +87,18 @@
       white-space: nowrap; text-decoration: none;
     }
     .nav-brand:hover { text-decoration: none; color: var(--text); }
-    .nav-links { display: flex; gap: 2px; }
+    .nav-links {
+      display: flex; gap: 2px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 1; min-width: 0;
+    }
+    .nav-links::-webkit-scrollbar { display: none; }
     .nav-links a {
       color: var(--muted); font-size: 13px; font-weight: 500;
-      padding: 5px 11px; border-radius: var(--radius);
-      transition: color 0.12s, background 0.12s;
+      padding: 5px 10px; border-radius: var(--radius);
+      transition: color 0.12s, background 0.12s; white-space: nowrap;
     }
     .nav-links a:hover { color: var(--text); background: var(--surface-2); text-decoration: none; }
     .nav-links a.active { color: var(--text); background: var(--surface-2); font-weight: 600; text-decoration: none; }
-    .nav-search {
-      flex: 1; max-width: 320px; margin-left: auto;
-      display: flex; gap: 6px;
-    }
-    .nav-search input {
-      flex: 1; background: var(--surface); border: 1px solid var(--border);
-      color: var(--text); border-radius: var(--radius);
-      padding: 5px 10px; font-size: 13px;
-      font-family: inherit;
-    }
-    .nav-search input:focus { outline: none; border-color: var(--accent); }
-    .nav-search input::placeholder { color: var(--dim); }
-    .nav-search button {
-      background: var(--surface); border: 1px solid var(--border);
-      color: var(--muted); padding: 5px 10px; border-radius: var(--radius);
-      cursor: pointer; font-size: 13px;
-    }
-    .nav-search button:hover { border-color: var(--border-2); color: var(--text); }
     .nav-logout {
       color: var(--dim); font-size: 12px; padding: 5px 8px;
       border-radius: var(--radius); transition: color 0.15s;
@@ -191,9 +177,8 @@
     .empty { color: var(--muted); padding: 40px; text-align: center; }
 
     @media (max-width: 640px) {
-      .nav-inner { gap: 12px; }
-      .nav-links a { padding: 5px 7px; }
-      .nav-search { max-width: 180px; }
+      .nav-inner { gap: 8px; }
+      .nav-links a { padding: 4px 7px; font-size: 12px; }
     }
   </style>
   {% block head %}{% endblock %}
@@ -202,18 +187,19 @@
 
 <nav>
   <div class="nav-inner">
-    <a class="nav-brand" href="{{ url_for('index') }}">&#9632; OSINT</a>
+    <a class="nav-brand" href="{{ url_for('home') }}">&#9632; LCC</a>
     <div class="nav-links">
-      <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Briefs</a>
-      <a href="{{ url_for('scorecard') }}" {% if request.endpoint == 'scorecard' %}class="active"{% endif %}>Scorecard</a>
+      <a href="{{ url_for('home') }}" {% if request.endpoint == 'home' %}class="active"{% endif %}>Home</a>
+      <a href="{{ url_for('osint_briefs') }}" {% if request.endpoint in ('osint_briefs', 'brief') %}class="active"{% endif %}>OSINT</a>
       <a href="{{ url_for('weekly') }}" {% if request.endpoint in ('weekly', 'weekly_detail') %}class="active"{% endif %}>Weekly</a>
+      <a href="{{ url_for('search') }}" {% if request.endpoint == 'search' %}class="active"{% endif %}>Search</a>
       <a href="{{ url_for('timeline') }}" {% if request.endpoint == 'timeline' %}class="active"{% endif %}>Timeline</a>
       <a href="{{ url_for('chat') }}" {% if request.endpoint == 'chat' %}class="active"{% endif %}>Chat</a>
+      <a href="{{ url_for('projects') }}" {% if request.endpoint == 'projects' %}class="active"{% endif %}>Projects</a>
+      <a href="{{ url_for('rotc') }}" {% if request.endpoint == 'rotc' %}class="active"{% endif %}>ROTC</a>
+      <a href="{{ url_for('school') }}" {% if request.endpoint == 'school' %}class="active"{% endif %}>School</a>
+      <a href="{{ url_for('notes') }}" {% if request.endpoint == 'notes' %}class="active"{% endif %}>Notes</a>
     </div>
-    <form class="nav-search" action="{{ url_for('search') }}" method="get">
-      <input type="search" name="q" placeholder="Search briefs…" value="{{ request.args.get('q', '') }}">
-      <button type="submit">Go</button>
-    </form>
     <a class="nav-logout" href="{{ url_for('logout') }}">Logout</a>
   </div>
 </nav>

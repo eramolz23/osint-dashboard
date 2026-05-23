@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Search — OSINT{% endblock %}
+{% block title %}Search — Luke Command Center{% endblock %}
 
 {% block head %}
 <style>
@@ -50,8 +50,12 @@
 </div>
 
 {% if q %}
-  {% if results %}
-    <p class="result-count">{{ results|length }} result{{ 's' if results|length != 1 }} for "{{ q }}"</p>
+  {% set total = (results|length) + (weekly_results|default([])|length) %}
+  {% if results or weekly_results|default([]) %}
+    <p class="result-count">{{ total }} result{{ 's' if total != 1 }} for "{{ q }}"</p>
+    {% if results %}
+    <h2 style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--dim);margin:0 0 12px">Intel Log</h2>
+    {% endif %}
     {% for b in results %}
     <div class="result-row">
       <div class="result-header">
@@ -74,6 +78,32 @@
       {% endif %}
     </div>
     {% endfor %}
+    {% if weekly_results|default([]) %}
+    <h2 style="font-size:13px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--dim);margin:24px 0 12px">Weekly Rollups</h2>
+    {% for r in weekly_results %}
+    <div class="result-row">
+      <div class="result-header">
+        <div>
+          <div class="result-title">
+            <a href="{{ url_for('weekly_detail', row_index=r._row_index) }}">Week ending {{ r.get('Week Ending', '—') }}</a>
+          </div>
+          {% if r.get('Days Covered') %}
+            <div class="result-meta">{{ r['Days Covered'] }} days covered</div>
+          {% endif %}
+        </div>
+        <div class="result-date">{{ r.get('Week Ending', '—') }}</div>
+      </div>
+      {% if r.get('_snippets') %}
+      <div class="result-snippets">
+        {% for snippet in r['_snippets'] %}
+        <div class="result-snippet">...{{ snippet|safe }}...</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
   {% else %}
     <div class="empty">No results found for "<strong>{{ q }}</strong>".</div>
   {% endif %}

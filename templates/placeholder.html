@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ module_name }} — Luke Command Center{% endblock %}
+
+{% block head %}
+<style>
+  .ph-wrap {
+    max-width: 580px; margin: 60px auto 0; text-align: center;
+  }
+  .ph-glyph {
+    font-size: 22px; letter-spacing: 6px; color: var(--border-2); margin-bottom: 24px;
+  }
+  .ph-name {
+    font-size: 24px; font-weight: 700; letter-spacing: 0.01em; margin-bottom: 10px;
+  }
+  .ph-badge {
+    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.09em;
+    text-transform: uppercase; padding: 3px 10px; border-radius: 100px;
+    border: 1px solid var(--border-2); color: var(--dim); margin-bottom: 20px;
+  }
+  .ph-desc {
+    font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 28px;
+  }
+  .ph-items {
+    text-align: left;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 28px;
+  }
+  .ph-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 18px; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .ph-item:last-child { border-bottom: none; }
+  .ph-item-label { color: var(--text); font-weight: 500; }
+  .ph-item-val { color: var(--dim); font-size: 12px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ph-wrap">
+  <div class="ph-glyph">&#9632;&#9632;&#9632;</div>
+  <div class="ph-name">{{ module_name }}</div>
+  <div class="ph-badge">Ready for Integration</div>
+  <div class="ph-desc">{{ module_desc }}</div>
+
+  {% if module_items %}
+  <div class="ph-items">
+    {% for item in module_items %}
+    <div class="ph-item">
+      <span class="ph-item-label">{{ item.label }}</span>
+      <span class="ph-item-val">{{ item.desc }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <a href="{{ url_for('home') }}" class="btn">&larr; Command Center</a>
+</div>
+{% endblock %}

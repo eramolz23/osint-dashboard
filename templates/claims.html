@@ -85,7 +85,7 @@
   </select>
   <button class="btn btn-primary" type="submit">Filter</button>
   {% if category_filter or priority_filter %}
-    <a class="btn" href="{{ url_for('claims') }}">Clear</a>
+    <a class="btn" href="#">Clear</a>
   {% endif %}
   <span class="filter-count">{{ total }} claim{{ 's' if total != 1 }}</span>
 </form>
