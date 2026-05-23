@@ -1,7 +1,7 @@
 {
-  "name": "OSINT Dashboard",
-  "short_name": "OSINT",
-  "description": "Daily intelligence briefs and source reliability tracking",
+  "name": "Luke Command Center",
+  "short_name": "LCC",
+  "description": "Personal command center: OSINT intelligence, weekly assessments, projects, ROTC, and school.",
   "start_url": "/",
   "display": "fullscreen",
   "background_color": "#060e1f",

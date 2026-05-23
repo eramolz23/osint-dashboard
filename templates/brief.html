@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ brief.get('Video Title', 'Brief') }} — OSINT{% endblock %}
+{% block title %}{{ brief.get('Video Title', 'Brief') }} — Luke Command Center{% endblock %}
 
 {% block head %}
 <style>
@@ -111,7 +111,7 @@
 {% endblock %}
 
 {% block content %}
-<a class="back-link" href="{{ url_for('index') }}">&larr; All Briefs</a>
+<a class="back-link" href="{{ url_for('osint_briefs') }}">&larr; Intel Log</a>
 
 <div class="brief-header">
   <h1>{{ brief.get('Video Title', '(untitled)') }}</h1>
