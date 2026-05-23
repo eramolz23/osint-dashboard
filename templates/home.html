@@ -1,212 +1,444 @@
 {% extends "base.html" %}
-{% block title %}Command Center — Luke Command Center{% endblock %}
+{% block title %}LCC — Luke Command Center{% endblock %}
 
 {% block head %}
 <style>
-  .cc-header {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border);
-  }
-  .cc-title-sub {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--dim); margin-bottom: 4px;
-  }
-  .cc-title-main { font-size: 20px; font-weight: 700; letter-spacing: 0.01em; color: var(--text); }
-  .cc-sys {
-    text-align: right; font-size: 11px; color: var(--dim);
-    font-family: ui-monospace, "SF Mono", monospace; line-height: 1.8;
-  }
-  .cc-sys .nominal { color: var(--green); font-weight: 700; letter-spacing: 0.06em; }
+  --mono: ui-monospace, "SF Mono", Menlo, monospace;
 
-  .card-grid { display: grid; gap: 14px; }
-  .g3      { grid-template-columns: repeat(3, 1fr); }
-  .g2-wide { grid-template-columns: 2fr 1fr; }
-  .g3-even { grid-template-columns: repeat(3, 1fr); }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 4px rgba(34,197,94,0); }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
 
-  .cc-card {
+  /* ── Header ── */
+  .lcc-header {
+    margin-bottom: 28px; padding-bottom: 22px; border-bottom: 1px solid var(--border);
+    animation: fade-up 0.35s ease both;
+  }
+  .lcc-header-top {
+    display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;
+  }
+  .lcc-callsign {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 7px;
+    font-family: ui-monospace, "SF Mono", monospace;
+  }
+  .lcc-title {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.02em; color: var(--text);
+    line-height: 1.1; margin-bottom: 5px;
+  }
+  .lcc-subtitle {
+    font-size: 11px; color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase;
+    font-family: ui-monospace, "SF Mono", monospace;
+  }
+  .lcc-sys {
+    text-align: right; font-family: ui-monospace, "SF Mono", monospace;
+  }
+  .sys-nominal-row {
+    display: flex; align-items: center; gap: 7px; justify-content: flex-end; margin-bottom: 7px;
+  }
+  .sys-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+  }
+  .sys-dot.live {
+    background: var(--green);
+    animation: pulse-dot 2.2s ease-in-out infinite;
+  }
+  .sys-dot.standby { background: var(--amber); }
+  .sys-dot.offline { background: var(--dim); }
+  .sys-nominal-label {
+    font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--green);
+  }
+  .sys-clock { font-size: 11px; color: var(--dim); margin-bottom: 3px; }
+  .sys-build { font-size: 10px; color: var(--dim); letter-spacing: 0.05em; }
+
+  /* Status strip */
+  .sys-strip { display: flex; gap: 6px; flex-wrap: wrap; }
+  .sys-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    font-family: ui-monospace, "SF Mono", monospace;
+    padding: 3px 9px; border-radius: 100px; border: 1px solid;
+  }
+  .sys-chip .sys-dot { width: 5px; height: 5px; }
+  .chip-green { color: var(--green);  border-color: rgba(34,197,94,0.35);  background: rgba(34,197,94,0.07); }
+  .chip-blue  { color: var(--accent); border-color: rgba(59,130,246,0.35); background: rgba(59,130,246,0.07); }
+  .chip-amber { color: var(--amber);  border-color: rgba(245,158,11,0.35); background: rgba(245,158,11,0.07); }
+  .chip-gray  { color: var(--dim);    border-color: var(--border);         background: transparent; }
+
+  /* ── Section dividers ── */
+  .sec-label {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--dim); font-family: ui-monospace, "SF Mono", monospace;
+    margin: 26px 0 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Card grid ── */
+  .ops-grid { display: grid; gap: 14px; margin-bottom: 0; }
+  .g-2w   { grid-template-columns: 2fr 1fr; }
+  .g-3    { grid-template-columns: repeat(3, 1fr); }
+
+  /* ── Cards ── */
+  .ops-card {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: var(--radius); padding: 18px 20px;
+    position: relative; overflow: hidden;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
+  .ops-card:hover { border-color: var(--border-2); }
 
-  .card-label {
-    font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
-    text-transform: uppercase; color: var(--dim); margin-bottom: 14px;
-    display: flex; align-items: center; gap: 7px;
+  /* Colored top accent + subtle corner glow */
+  .ac-blue  { border-top: 2px solid var(--accent); }
+  .ac-green { border-top: 2px solid var(--green);  }
+  .ac-amber { border-top: 2px solid var(--amber);  }
+  .ac-blue::after,
+  .ac-green::after,
+  .ac-amber::after {
+    content: ''; position: absolute; top: 0; right: 0;
+    width: 140px; height: 90px; pointer-events: none;
   }
-  .card-label::before {
-    content: ''; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  .ac-blue::after  { background: radial-gradient(ellipse at top right, rgba(59,130,246,0.08),  transparent); }
+  .ac-green::after { background: radial-gradient(ellipse at top right, rgba(34,197,94,0.07),   transparent); }
+  .ac-amber::after { background: radial-gradient(ellipse at top right, rgba(245,158,11,0.07),  transparent); }
+
+  .ops-card.dim { opacity: 0.68; }
+
+  /* Card anatomy */
+  .card-eye {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--dim); font-family: ui-monospace, "SF Mono", monospace;
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
   }
-  .lbl-green::before { background: var(--green); }
-  .lbl-blue::before  { background: var(--accent); }
-  .lbl-amber::before { background: var(--amber); }
-  .lbl-dim::before   { background: var(--dim); }
+  .card-badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 100px; border: 1px solid;
+  }
+  .cb-active  { color: var(--green);  border-color: rgba(34,197,94,0.4);  background: rgba(34,197,94,0.08);  }
+  .cb-standby { color: var(--amber);  border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
+  .cb-offline { color: var(--dim);    border-color: var(--border);        background: transparent; }
+  .cb-blue    { color: var(--accent); border-color: rgba(59,130,246,0.4); background: rgba(59,130,246,0.08); }
 
-  .stat-num { font-size: 32px; font-weight: 700; line-height: 1; color: var(--text); }
-  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 5px; }
-  .stat-mono { font-family: ui-monospace, "SF Mono", monospace; }
+  .card-stat {
+    font-size: 36px; font-weight: 700; line-height: 1;
+    font-family: ui-monospace, "SF Mono", monospace; color: var(--text);
+  }
+  .card-stat-unit { font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 5px; }
+  .card-sublabel { font-size: 12px; color: var(--muted); margin-top: 4px; }
 
-  .brief-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.4; margin-bottom: 6px; }
-  .brief-meta  { font-size: 12px; color: var(--dim); }
+  .card-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
-  .weekly-week { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 4px; }
+  .card-meta  { font-size: 11px; color: var(--dim); font-family: ui-monospace, "SF Mono", monospace; }
+  .card-body  { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+  .card-actions { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .card-lnk {
+    font-size: 11px; font-weight: 600; color: var(--accent);
+    text-decoration: none; letter-spacing: 0.02em;
+  }
+  .card-lnk:hover { text-decoration: underline; }
+  .card-lnk + .card-lnk { margin-left: 6px; }
+
+  /* Weekly */
+  .weekly-week { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
   .weekly-preview {
-    font-size: 13px; color: var(--muted); line-height: 1.6;
-    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
-    margin-bottom: 12px;
+    font-size: 13px; color: var(--muted); line-height: 1.65;
+    display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+    margin-bottom: 14px;
   }
 
-  .quick-links { display: flex; flex-direction: column; gap: 7px; }
-  .ql {
-    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-    background: var(--surface-2); border: 1px solid var(--border);
-    border-radius: var(--radius); font-size: 13px; color: var(--text);
+  /* Module rows */
+  .mod-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .mod-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 11px; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 12px; text-decoration: none; color: var(--text);
     transition: border-color 0.12s;
   }
-  .ql:hover { border-color: var(--accent); text-decoration: none; color: var(--text); }
-  .ql-icon { font-size: 10px; color: var(--dim); width: 12px; }
-
-  .ph-card { opacity: 0.65; }
-  .ph-status {
-    display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: 0.07em;
-    text-transform: uppercase; color: var(--dim); padding: 2px 8px;
-    border: 1px solid var(--border); border-radius: 100px; margin-bottom: 10px;
+  a.mod-row:hover { border-color: var(--accent); text-decoration: none; color: var(--text); }
+  .mod-name { font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .mod-arrow { color: var(--dim); }
+  .mod-status {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    font-family: ui-monospace, "SF Mono", monospace;
   }
-  .ph-desc { font-size: 13px; color: var(--dim); line-height: 1.55; margin-bottom: 12px; }
+  .ms-active  { color: var(--green); }
+  .ms-standby { color: var(--amber); }
+  .ms-offline { color: var(--dim);   }
 
-  .card-link {
-    display: inline-block; margin-top: 10px; font-size: 12px;
-    color: var(--accent); text-decoration: none;
+  /* AI stack rows */
+  .ai-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
   }
-  .card-link:hover { text-decoration: underline; }
+  .ai-row:last-of-type { border-bottom: none; }
+  .ai-name  { flex: 1; font-size: 13px; font-weight: 500; color: var(--text); }
+  .ai-model { font-size: 10px; color: var(--dim); font-family: ui-monospace, "SF Mono", monospace; }
 
-  @media (max-width: 900px) {
-    .g3      { grid-template-columns: 1fr 1fr; }
-    .g2-wide { grid-template-columns: 1fr; }
-    .g3-even { grid-template-columns: 1fr 1fr; }
+  /* Life module sub-items */
+  .life-items { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 14px; }
+  .life-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 11px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 6px; font-size: 12px;
   }
-  @media (max-width: 560px) {
-    .g3, .g3-even { grid-template-columns: 1fr; }
+  .life-item-name { color: var(--text); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+
+  @media (max-width: 960px) {
+    .g-2w { grid-template-columns: 1fr; }
+    .g-3  { grid-template-columns: 1fr 1fr; }
+    .lcc-header-top { flex-direction: column; gap: 14px; }
+    .lcc-sys { text-align: left; }
+    .sys-nominal-row { justify-content: flex-start; }
+  }
+  @media (max-width: 600px) {
+    .g-3 { grid-template-columns: 1fr; }
+    .lcc-title { font-size: 22px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="cc-header">
-  <div>
-    <div class="cc-title-sub">System Overview</div>
-    <div class="cc-title-main">Luke Command Center</div>
-  </div>
-  <div class="cc-sys">
-    <div class="nominal">&#9679; NOMINAL</div>
-    <div>{{ fetched_at }}</div>
-    <div>OSINT // INTEL // OPS</div>
-  </div>
-</div>
 
-<!-- Row 1: Status / Snapshot / Latest Brief -->
-<div class="card-grid g3" style="margin-bottom:14px">
-
-  <div class="cc-card">
-    <div class="card-label lbl-green">Command Status</div>
-    <div class="stat-num" style="color:var(--green)">NOMINAL</div>
-    <div class="stat-sub">All modules online</div>
-    <div class="stat-sub stat-mono" style="margin-top:10px;color:var(--dim)">{{ fetched_at }}</div>
-  </div>
-
-  <div class="cc-card">
-    <div class="card-label lbl-blue">OSINT Snapshot</div>
-    {% if brief_count > 0 %}
-      <div class="stat-num">{{ brief_count }}</div>
-      <div class="stat-sub">intel entries logged</div>
-      {% if latest_brief %}
-        <div class="stat-sub" style="margin-top:10px">
-          Latest: <strong style="color:var(--text)">{{ latest_brief.get('Date', '—') }}</strong>
-        </div>
-      {% endif %}
-    {% else %}
-      <div class="stat-sub">No entries found.</div>
-    {% endif %}
-    <a class="card-link" href="{{ url_for('osint_briefs') }}">View Intel Log &rarr;</a>
-  </div>
-
-  <div class="cc-card">
-    <div class="card-label lbl-blue">Latest Brief</div>
-    {% if latest_brief %}
-      <div class="brief-title">{{ latest_brief.get('Video Title', '(untitled)') }}</div>
-      <div class="brief-meta">
-        {{ latest_brief.get('Date', '—') }}
-        {% if latest_brief.get('Channel') %} &middot; {{ latest_brief.get('Channel') }}{% endif %}
+<!-- ── Operator Header ── -->
+<div class="lcc-header">
+  <div class="lcc-header-top">
+    <div>
+      <div class="lcc-callsign">&#9632; LCC &nbsp;//&nbsp; PERSONAL AI OPS CONSOLE</div>
+      <div class="lcc-title">Luke Command Center</div>
+      <div class="lcc-subtitle">OPERATOR: LUKEERAMO &nbsp;&nbsp;&middot;&nbsp;&nbsp; BUILD v1.0 &nbsp;&nbsp;&middot;&nbsp;&nbsp; SECURE SESSION</div>
+    </div>
+    <div class="lcc-sys">
+      <div class="sys-nominal-row">
+        <div class="sys-dot live"></div>
+        <span class="sys-nominal-label">NOMINAL</span>
       </div>
-      {% if latest_brief.get('Video URL') %}
-        <div style="margin-top:6px">
-          <a href="{{ latest_brief.get('Video URL') }}" target="_blank" rel="noopener" style="font-size:11px;color:var(--accent)">Watch &nearr;</a>
-        </div>
-      {% endif %}
-      <a class="card-link" href="{{ url_for('brief', row_index=latest_brief._row_index) }}">Read Brief &rarr;</a>
-    {% else %}
-      <div class="stat-sub">No briefs available.</div>
-    {% endif %}
+      <div class="sys-clock" id="lcc-clock"></div>
+      <div class="sys-build">SYSTEMS ONLINE</div>
+    </div>
   </div>
-
+  <div class="sys-strip">
+    <div class="sys-chip chip-green"><div class="sys-dot live" style="animation-delay:0s"></div>Intel Active</div>
+    <div class="sys-chip chip-blue"><div class="sys-dot live" style="background:var(--accent);animation:none"></div>AI Stack Online</div>
+    <div class="sys-chip chip-green"><div class="sys-dot live" style="animation-delay:0.4s"></div>Sheets Connected</div>
+    <div class="sys-chip chip-amber"><div class="sys-dot standby"></div>ROTC Standby</div>
+    <div class="sys-chip chip-amber"><div class="sys-dot standby"></div>School Standby</div>
+    <div class="sys-chip chip-gray"><div class="sys-dot offline"></div>Projects Offline</div>
+  </div>
 </div>
 
-<!-- Row 2: Weekly Assessment / Quick Links -->
-<div class="card-grid g2-wide" style="margin-bottom:14px">
+<!-- ── Active Intelligence ── -->
+<div class="sec-label">Active Intelligence</div>
+<div class="ops-grid g-2w">
 
-  <div class="cc-card">
-    <div class="card-label lbl-amber">Weekly Assessment</div>
+  <div class="ops-card ac-amber">
+    <div class="card-eye">
+      <span>Weekly Assessment</span>
+      <span class="card-badge cb-active">Latest</span>
+    </div>
     {% if latest_rollup %}
       <div class="weekly-week">
         Week ending {{ latest_rollup.get('Week Ending', '—') }}
         {% if latest_rollup.get('Days Covered') %}
-          <span style="font-weight:400;color:var(--dim);font-size:12px"> &middot; {{ latest_rollup.get('Days Covered') }} days</span>
+          <span style="font-weight:400;color:var(--dim);font-size:12px"> &middot; {{ latest_rollup.get('Days Covered') }}d covered</span>
         {% endif %}
       </div>
-      <div class="weekly-preview">{{ latest_rollup.get('Weekly Assessment', '')|striptags|truncate(300) }}</div>
-      <a class="btn btn-sm" href="{{ url_for('weekly_detail', row_index=latest_rollup._row_index) }}">Full Assessment &rarr;</a>
-      <a class="btn btn-sm" href="{{ url_for('weekly') }}" style="margin-left:8px">All Rollups</a>
+      <div class="weekly-preview">{{ latest_rollup.get('Weekly Assessment', '')|striptags|truncate(340) }}</div>
+      <div class="card-actions">
+        <a class="btn btn-sm" href="{{ url_for('weekly_detail', row_index=latest_rollup._row_index) }}">Full Assessment &rarr;</a>
+        <a class="btn btn-sm" href="{{ url_for('weekly') }}">All Rollups</a>
+      </div>
     {% else %}
-      <div class="stat-sub">No weekly rollups available.</div>
-      <a class="card-link" href="{{ url_for('weekly') }}">Weekly Archive &rarr;</a>
+      <div class="card-body">No weekly rollups available.</div>
+      <div class="card-actions"><a class="card-lnk" href="{{ url_for('weekly') }}">Weekly Archive &rarr;</a></div>
     {% endif %}
   </div>
 
-  <div class="cc-card">
-    <div class="card-label lbl-dim">Quick Links</div>
-    <div class="quick-links">
-      <a class="ql" href="{{ url_for('osint_briefs') }}"><span class="ql-icon">&#9632;</span> OSINT Intel Log</a>
-      <a class="ql" href="{{ url_for('weekly') }}"><span class="ql-icon">&#9632;</span> Weekly Rollups</a>
-      <a class="ql" href="{{ url_for('chat') }}"><span class="ql-icon">&#9632;</span> AI Chat</a>
-      <a class="ql" href="{{ url_for('timeline') }}"><span class="ql-icon">&#9632;</span> Timeline Search</a>
-      <a class="ql" href="{{ url_for('search') }}"><span class="ql-icon">&#9632;</span> Keyword Search</a>
+  <div class="ops-card ac-blue">
+    <div class="card-eye">
+      <span>OSINT Snapshot</span>
+      <span class="card-badge cb-active">Live</span>
+    </div>
+    {% if brief_count > 0 %}
+      <div class="card-stat">{{ brief_count }}<span class="card-stat-unit">entries</span></div>
+      <div class="card-sublabel">Intel records in log</div>
+      {% if latest_brief %}
+        <hr class="card-divider">
+        <div class="card-meta" style="margin-bottom:5px">Latest brief</div>
+        <div class="card-title">{{ latest_brief.get('Video Title', '(untitled)')|truncate(64) }}</div>
+        <div class="card-meta">
+          {{ latest_brief.get('Date', '—') }}
+          {% if latest_brief.get('Channel') %} &middot; {{ latest_brief.get('Channel') }}{% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="card-body">No intel entries found.</div>
+    {% endif %}
+    <div class="card-actions">
+      <a class="card-lnk" href="{{ url_for('osint_briefs') }}">Intel Log &rarr;</a>
+      {% if latest_brief %}
+        <a class="card-lnk" href="{{ url_for('brief', row_index=latest_brief._row_index) }}">Latest Brief &rarr;</a>
+      {% endif %}
     </div>
   </div>
 
 </div>
 
-<!-- Row 3: Module Placeholders -->
-<div class="card-grid g3-even">
+<!-- ── AI Operations ── -->
+<div class="sec-label">AI Operations</div>
+<div class="ops-grid g-3">
 
-  <div class="cc-card ph-card">
-    <div class="card-label lbl-dim">Projects</div>
-    <div class="ph-status">Ready for Integration</div>
-    <div class="ph-desc">Project tracking, task boards, and progress logs.</div>
-    <a class="card-link" href="{{ url_for('projects') }}">Open Module &rarr;</a>
+  <div class="ops-card ac-green">
+    <div class="card-eye">
+      <span>AI Chat</span>
+      <span class="card-badge cb-active">Online</span>
+    </div>
+    <div class="ai-row">
+      <div class="sys-dot live"></div>
+      <div class="ai-name">Intel Analyst</div>
+      <div class="ai-model">Gemini Flash</div>
+    </div>
+    <div class="ai-row">
+      <div class="sys-dot live" style="background:var(--accent);animation:none"></div>
+      <div class="ai-name">Command Center</div>
+      <div class="ai-model">Claude Sonnet</div>
+    </div>
+    <div class="card-actions" style="margin-top:16px">
+      <a class="btn btn-sm btn-primary" href="{{ url_for('chat') }}">Open Chat &rarr;</a>
+    </div>
   </div>
 
-  <div class="cc-card ph-card">
-    <div class="card-label lbl-dim">ROTC / Army</div>
-    <div class="ph-status">Ready for Integration</div>
-    <div class="ph-desc">Advanced Camp and Air Assault preparation, duty logs, and training records.</div>
-    <a class="card-link" href="{{ url_for('rotc') }}">Open Module &rarr;</a>
+  <div class="ops-card ac-blue">
+    <div class="card-eye">
+      <span>Intel Search</span>
+      <span class="card-badge cb-active">Active</span>
+    </div>
+    <div class="mod-list">
+      <a class="mod-row" href="{{ url_for('search') }}">
+        <span class="mod-name"><span class="mod-arrow">&#9654;</span> Keyword Search</span>
+        <span class="mod-status ms-active">Active</span>
+      </a>
+      <a class="mod-row" href="{{ url_for('timeline') }}">
+        <span class="mod-name"><span class="mod-arrow">&#9654;</span> Timeline View</span>
+        <span class="mod-status ms-active">Active</span>
+      </a>
+      <a class="mod-row" href="{{ url_for('weekly') }}">
+        <span class="mod-name"><span class="mod-arrow">&#9654;</span> Weekly Rollups</span>
+        <span class="mod-status ms-active">Active</span>
+      </a>
+      <a class="mod-row" href="{{ url_for('osint_briefs') }}">
+        <span class="mod-name"><span class="mod-arrow">&#9654;</span> Intel Log</span>
+        <span class="mod-status ms-active">Active</span>
+      </a>
+    </div>
   </div>
 
-  <div class="cc-card ph-card">
-    <div class="card-label lbl-dim">School</div>
-    <div class="ph-status">Ready for Integration</div>
-    <div class="ph-desc">Coursework, grades, and academic planning.</div>
-    <a class="card-link" href="{{ url_for('school') }}">Open Module &rarr;</a>
+  <div class="ops-card">
+    <div class="card-eye">
+      <span>Today's Mission</span>
+      <span class="card-badge cb-offline">No Entry</span>
+    </div>
+    <div class="card-body" style="font-size:12px;font-style:italic;color:var(--dim);margin-bottom:14px">
+      No mission objective set for today.
+    </div>
+    <hr class="card-divider">
+    <div class="card-eye" style="margin-bottom:10px">Daily Tools</div>
+    <div class="mod-list" style="margin-top:0">
+      <a class="mod-row" href="{{ url_for('notes') }}">
+        <span class="mod-name"><span class="mod-arrow" style="color:var(--dim)">&#9654;</span> Notes / Obsidian</span>
+        <span class="mod-status ms-standby">Standby</span>
+      </a>
+      <a class="mod-row" href="{{ url_for('chat') }}">
+        <span class="mod-name"><span class="mod-arrow" style="color:var(--dim)">&#9654;</span> AI Assistant</span>
+        <span class="mod-status ms-active">Online</span>
+      </a>
+    </div>
   </div>
 
 </div>
+
+<!-- ── Life Modules ── -->
+<div class="sec-label">Life Modules</div>
+<div class="ops-grid g-3">
+
+  <div class="ops-card dim">
+    <div class="card-eye">
+      <span>Projects</span>
+      <span class="card-badge cb-offline">Offline</span>
+    </div>
+    <div class="card-body" style="font-size:12px;margin-bottom:0">Project tracking, task boards, and progress logs.</div>
+    <div class="life-items">
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--dim)">&#9654;</span> Active Projects</span>
+        <span class="mod-status ms-offline">&mdash;</span>
+      </div>
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--dim)">&#9654;</span> Task Boards</span>
+        <span class="mod-status ms-offline">&mdash;</span>
+      </div>
+    </div>
+    <a class="card-lnk" href="{{ url_for('projects') }}">Open Module &rarr;</a>
+  </div>
+
+  <div class="ops-card dim">
+    <div class="card-eye">
+      <span>ROTC / Army</span>
+      <span class="card-badge cb-standby">Standby</span>
+    </div>
+    <div class="card-body" style="font-size:12px;margin-bottom:0">Advanced Camp, Air Assault, duty logs, and PT tracking.</div>
+    <div class="life-items">
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--amber)">&#9654;</span> Advanced Camp</span>
+        <span class="mod-status ms-standby">Standby</span>
+      </div>
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--amber)">&#9654;</span> Air Assault</span>
+        <span class="mod-status ms-standby">Standby</span>
+      </div>
+    </div>
+    <a class="card-lnk" href="{{ url_for('rotc') }}">Open Module &rarr;</a>
+  </div>
+
+  <div class="ops-card dim">
+    <div class="card-eye">
+      <span>School</span>
+      <span class="card-badge cb-standby">Standby</span>
+    </div>
+    <div class="card-body" style="font-size:12px;margin-bottom:0">Coursework, grades, assignment deadlines, and academic planning.</div>
+    <div class="life-items">
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--amber)">&#9654;</span> Courses</span>
+        <span class="mod-status ms-standby">Standby</span>
+      </div>
+      <div class="life-item">
+        <span class="life-item-name"><span style="color:var(--amber)">&#9654;</span> Deadlines</span>
+        <span class="mod-status ms-standby">Standby</span>
+      </div>
+    </div>
+    <a class="card-lnk" href="{{ url_for('school') }}">Open Module &rarr;</a>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var el = document.getElementById('lcc-clock');
+  if (!el) return;
+  function tick() {
+    var now = new Date();
+    var d = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    var t = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    el.textContent = d + ' · ' + t;
+  }
+  tick();
+  setInterval(tick, 1000);
+}());
+</script>
+
 {% endblock %}
